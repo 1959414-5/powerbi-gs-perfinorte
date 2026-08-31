@@ -189,7 +189,7 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.16)}
    Cole aqui a URL do app da web publicado pelo Apps Script.
    Enquanto estiver vazio, o dashboard usa dados_demo.js.
    ======================================================================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwEehiiPDWe3rWJ2XffRXWE7oqgSMp6HodPsI0kzIEb-Z_XDA/exec";
+const API_URL = "";
 
 /* ----------------------------- estado ----------------------------- */
 const estado = {
@@ -209,7 +209,9 @@ async function carregar() {
       if (!r.ok) throw new Error("HTTP " + r.status);
       dados = await r.json();
     } catch (e) {
-      avisar("Não consegui ler a planilha (" + e.message + "). Mostrando os dados de exemplo embutidos.");
+      avisar("Não consegui ler a planilha (" + e.message + "). Confira: a URL precisa terminar em /exec"
+        + " (não /dev) e a implantação precisa estar como \"Qualquer pessoa\" em quem tem acesso."
+        + " Mostrando os dados de exemplo embutidos.");
     }
   } else {
     avisar("API_URL está vazio no index.html — usando os dados de exemplo embutidos.");
