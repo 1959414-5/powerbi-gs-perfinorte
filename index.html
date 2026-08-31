@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfinorte — Pedidos</title>
+<style>
+:root{
+  --fundo:#101c30;
+  --painel:#16233b;
+  --painel-2:#1b2b47;
+  --linha:#26385a;
+  --texto:#e8eef8;
+  --texto-fraco:#93a4c0;
+  --ciano:#4fc3f7;
+  --vermelho:#ff6b6b;
+  --amarelo:#ffc857;
+  --verde:#4ade80;
+  --raio:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--fundo);
+  color:var(--texto);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+  font-size:13px;
+  padding:14px 18px 40px;
+}
+
+/* ---------- topo ---------- */
+.topo{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:14px}
+.marca{line-height:1}
+.marca .empresa{font-size:15px;letter-spacing:.16em;color:var(--texto-fraco)}
+.marca h1{margin:4px 0 0;font-size:34px;font-weight:300;letter-spacing:.08em}
+.kpis{display:flex;gap:12px;margin-left:auto;flex-wrap:wrap}
+.kpi{
+  background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
+  padding:10px 20px;min-width:150px;
+}
+.kpi .rotulo{color:var(--texto-fraco);font-size:12px;display:flex;align-items:center;gap:6px}
+.kpi .valor{font-size:28px;font-weight:600;text-align:right;margin-top:2px}
+.kpi.atraso .valor{color:var(--vermelho)}
+.kpi.prazo .valor{color:var(--ciano)}
+.kpi.pronto .valor{color:var(--verde)}
+.kpi.media .valor{color:var(--amarelo)}
+
+/* ---------- painéis ---------- */
+.painel{
+  background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
+  margin-bottom:14px;overflow:hidden;
+}
+.cabeca{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:9px 14px;background:var(--painel-2);border-bottom:1px solid var(--linha);
+}
+.cabeca h2{margin:0;font-size:14px;font-weight:500;color:var(--texto-fraco)}
+.controles{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+
+input[type=search],select{
+  background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 9px;font:inherit;min-width:130px;
+}
+input[type=search]:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+
+.btn{
+  background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 14px;font:inherit;cursor:pointer;
+}
+.btn:hover{border-color:var(--ciano);color:var(--texto)}
+.btn[aria-pressed=true]{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
+.btn:focus-visible{outline:2px solid var(--ciano);outline-offset:2px}
+
+/* ---------- tabelas ---------- */
+.rolagem{max-height:300px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{
+  position:sticky;top:0;z-index:1;
+  background:var(--painel-2);color:var(--ciano);
+  text-align:left;font-weight:600;padding:8px 12px;
+  border-bottom:1px solid var(--linha);cursor:pointer;white-space:nowrap;
+}
+thead th:hover{color:#fff}
+tbody td{padding:6px 12px;border-bottom:1px solid rgba(38,56,90,.5);white-space:nowrap}
+tbody td.desc{white-space:normal;max-width:520px}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:rgba(79,195,247,.07)}
+tbody tr[aria-selected=true]{background:rgba(79,195,247,.16)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+
+.tag{font-weight:600}
+.tag.ATRASADO{color:var(--vermelho)}
+.tag.A_RETIRAR,.tag.PROGRAMANDO,.tag.CORTANDO,.tag.DOBRANDO,.tag.CALANDRANDO{color:var(--ciano)}
+.tag.PRONTO,.tag.FINALIZADO,.tag.DOBRADO,.tag.CORTADO,.tag.PROGRAMADO,.tag.CALANDRADO{color:var(--verde)}
+.tag.NO_PRAZO{color:var(--texto-fraco)}
+.tag.SEM_DATA{color:var(--texto-fraco)}
+.tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR{color:var(--amarelo)}
+.tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA,.tag.NAO_INICIADO{color:var(--amarelo)}
+
+.rodape{padding:7px 14px;color:var(--texto-fraco);font-size:11.5px;border-top:1px solid var(--linha);display:flex;gap:14px;flex-wrap:wrap}
+.vazio{padding:26px;text-align:center;color:var(--texto-fraco)}
+#aviso{
+  background:#3a2a12;border:1px solid #6b4d1e;color:#ffd08a;
+  border-radius:var(--raio);padding:9px 14px;margin-bottom:12px;font-size:12.5px;display:none;
+}
+@media (prefers-reduced-motion:no-preference){.kpi .valor{transition:color .2s}}
+</style>
+</head>
+<body>
+
+<div id="aviso"></div>
+
+<div class="topo">
+  <div class="marca">
+    <div class="empresa">PERFINORTE</div>
+    <h1>Pedidos</h1>
+  </div>
+  <div class="kpis">
+    <div class="kpi atraso"><div class="rotulo">Pedidos atrasados</div><div class="valor" id="kpiAtrasados">–</div></div>
+    <div class="kpi prazo"><div class="rotulo">Pedidos no prazo</div><div class="valor" id="kpiNoPrazo">–</div></div>
+    <div class="kpi pronto"><div class="rotulo">Pedidos prontos</div><div class="valor" id="kpiProntos">–</div></div>
+    <div class="kpi media"><div class="rotulo">Média dias de atraso</div><div class="valor" id="kpiMedia">–</div></div>
+  </div>
+</div>
+
+<section class="painel">
+  <div class="cabeca">
+    <h2>Status por pedido</h2>
+    <div class="controles">
+      <input type="search" id="buscaPedido" placeholder="Pedido ou cliente" aria-label="Buscar pedido ou cliente">
+      <select id="filtroCliente" aria-label="Filtrar por cliente"><option value="">Todos os clientes</option></select>
+      <button class="btn" data-status="" aria-pressed="true">Todos</button>
+      <button class="btn" data-status="A_RETIRAR" aria-pressed="false">A retirar</button>
+      <button class="btn" data-status="ATRASADO" aria-pressed="false">Atrasado</button>
+      <button class="btn" data-status="NO_PRAZO" aria-pressed="false">No prazo</button>
+      <button class="btn" id="exportaPedidos">Baixar CSV</button>
+    </div>
+  </div>
+  <div class="rolagem">
+    <table id="tabPedidos">
+      <thead><tr>
+        <th data-col="Pedido_Linha">Pedido</th>
+        <th data-col="Data_Emissao">Data emissão</th>
+        <th data-col="Cliente">Cliente</th>
+        <th data-col="Data_Entrega">Data entrega</th>
+        <th data-col="Status_Pedido">Status entrega</th>
+        <th data-col="Qtd_Itens_Produzidos" class="num">Itens prontos</th>
+        <th data-col="Dias_Vencido" class="num">Dias vencidos</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="rodape"><span id="rodapePedidos"></span></div>
+</section>
+
+<section class="painel">
+  <div class="cabeca">
+    <h2>Status de pedidos por item</h2>
+    <div class="controles">
+      <span id="selecionado" style="color:var(--ciano)"></span>
+      <input type="search" id="buscaItem" placeholder="Descrição do item" aria-label="Buscar item">
+      <button class="btn" data-periodo="semana" aria-pressed="false">Esta semana</button>
+      <button class="btn" data-periodo="mes" aria-pressed="false">Este mês</button>
+      <button class="btn" data-periodo="hoje" aria-pressed="false">Hoje</button>
+      <button class="btn" data-periodo="tudo" aria-pressed="true">Tudo</button>
+      <button class="btn" id="exportaItens">Baixar CSV</button>
+    </div>
+  </div>
+  <div class="rolagem">
+    <table id="tabItens">
+      <thead><tr>
+        <th data-col="Pedido_Linha">Pedido</th>
+        <th data-col="Item_Pedido" class="num">Item</th>
+        <th data-col="Produto">Descrição</th>
+        <th data-col="Processo_Executado">Processo atual</th>
+        <th data-col="Status_Processo_Executado">Status processo</th>
+        <th data-col="Status_Final_Item">Status item</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="rodape"><span id="rodapeItens"></span></div>
+</section>
+
+<script src="dados_demo.js" onerror="window.DADOS_DEMO=null"></script>
+<script>
+/* =======================================================================
+   1. FONTE DOS DADOS
+   Cole aqui a URL do app da web publicado pelo Apps Script.
+   Enquanto estiver vazio, o dashboard usa dados_demo.js.
+   ======================================================================= */
+const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwEehiiPDWe3rWJ2XffRXWE7oqgSMp6HodPsI0kzIEb-Z_XDA/exec";
+
+/* ----------------------------- estado ----------------------------- */
+const estado = {
+  pedidos: [], itens: [], hoje: "",
+  statusPedido: "", clienteSel: "", buscaPedido: "", pedidoSel: "",
+  periodo: "tudo", buscaItem: "",
+  ordemPedidos: { col: "Dias_Vencido", desc: true },
+  ordemItens: { col: "Pedido_Linha", desc: false }
+};
+
+/* ------------------------- carregamento --------------------------- */
+async function carregar() {
+  let dados = null;
+  if (API_URL) {
+    try {
+      const r = await fetch(API_URL, { redirect: "follow" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      dados = await r.json();
+    } catch (e) {
+      avisar("Não consegui ler a planilha (" + e.message + "). Mostrando os dados de exemplo embutidos.");
+    }
+  } else {
+    avisar("API_URL está vazio no index.html — usando os dados de exemplo embutidos.");
+  }
+  if (!dados) dados = window.DADOS_DEMO;
+  if (!dados) { avisar("Nenhuma fonte de dados disponível."); return; }
+
+  estado.pedidos = paraObjetos(dados.P);
+  estado.itens = paraObjetos(dados.I);
+  estado.hoje = dados.hoje || new Date().toISOString().slice(0, 10);
+
+  montarClientes();
+  render();
+}
+
+function paraObjetos(t) {
+  if (!t || !t.rows) return [];
+  return t.rows.map(function (linha) {
+    const o = {};
+    t.cols.forEach(function (c, i) { o[c] = linha[i]; });
+    return o;
+  });
+}
+
+function avisar(msg) {
+  const el = document.getElementById("aviso");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+/* --------------------------- filtros ------------------------------ */
+function pedidosFiltrados() {
+  const busca = estado.buscaPedido.toLowerCase();
+  return estado.pedidos.filter(function (p) {
+    if (estado.statusPedido && p.Status_Pedido_Key !== estado.statusPedido) return false;
+    if (estado.clienteSel && p.Cliente !== estado.clienteSel) return false;
+    if (busca && !(String(p.Pedido_Linha) + " " + p.Cliente).toLowerCase().includes(busca)) return false;
+    return true;
+  });
+}
+
+function itensFiltrados() {
+  const visiveis = new Set(pedidosFiltrados().map(function (p) { return String(p.Pedido_Linha); }));
+  const entrega = {};
+  estado.pedidos.forEach(function (p) { entrega[p.Pedido_Linha] = p.Data_Entrega; });
+
+  const lim = limitePeriodo();
+  const busca = estado.buscaItem.toLowerCase();
+
+  return estado.itens.filter(function (i) {
+    if (estado.pedidoSel) { if (String(i.Pedido_Linha) !== estado.pedidoSel) return false; }
+    else if (!visiveis.has(String(i.Pedido_Linha))) return false;
+
+    if (lim) {
+      const d = entrega[i.Pedido_Linha];
+      if (!d || d < lim.de || d > lim.ate) return false;
+    }
+    if (busca && !String(i.Produto).toLowerCase().includes(busca)) return false;
+    return true;
+  });
+}
+
+function limitePeriodo() {
+  const hoje = estado.hoje;
+  if (!hoje || estado.periodo === "tudo") return null;
+  if (estado.periodo === "hoje") return { de: hoje, ate: hoje };
+
+  const d = new Date(hoje + "T00:00:00Z");
+  if (estado.periodo === "semana") {
+    const dia = d.getUTCDay();
+    const ini = new Date(d); ini.setUTCDate(d.getUTCDate() - dia);
+    const fim = new Date(ini); fim.setUTCDate(ini.getUTCDate() + 6);
+    return { de: iso(ini), ate: iso(fim) };
+  }
+  const ini = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const fim = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+  return { de: iso(ini), ate: iso(fim) };
+}
+
+const iso = function (d) { return d.toISOString().slice(0, 10); };
+
+/* -------------------------- indicadores --------------------------- */
+function render() {
+  const peds = pedidosFiltrados();
+
+  const atrasados = peds.filter(function (p) { return p.Status_Pedido_Key === "ATRASADO"; });
+  const noPrazo = peds.filter(function (p) { return p.Status_Pedido_Key === "NO_PRAZO"; }).length;
+  const prontos = peds.filter(function (p) {
+    return p.Status_Pedido_Key === "PRONTO" || p.Status_Pedido_Key === "A_RETIRAR";
+  }).length;
+
+  let media = 0;
+  atrasados.forEach(function (p) { media += diasAte(p.Data_Entrega); });
+  media = atrasados.length ? Math.round(media / atrasados.length) : 0;
+
+  texto("kpiAtrasados", atrasados.length || "–");
+  texto("kpiNoPrazo", noPrazo || "–");
+  texto("kpiProntos", prontos || "–");
+  texto("kpiMedia", atrasados.length ? media : "–");
+
+  desenharPedidos(ordenar(peds, estado.ordemPedidos));
+  const itens = ordenar(itensFiltrados(), estado.ordemItens);
+  desenharItens(itens);
+
+  texto("rodapePedidos", peds.length + " de " + estado.pedidos.length + " pedidos");
+  texto("rodapeItens", itens.length + " itens" + (estado.pedidoSel ? " no pedido " + estado.pedidoSel : ""));
+  texto("selecionado", estado.pedidoSel ? "Pedido " + estado.pedidoSel + " — clique de novo para limpar" : "");
+}
+
+function diasAte(entrega) {
+  if (!entrega) return 0;
+  return Math.max(0, Math.round(
+    (new Date(estado.hoje + "T00:00:00Z") - new Date(entrega + "T00:00:00Z")) / 86400000));
+}
+
+function ordenar(lista, ordem) {
+  const c = ordem.col;
+  return lista.slice().sort(function (a, b) {
+    let x = a[c], y = b[c];
+    const nx = parseFloat(x), ny = parseFloat(y);
+    if (!isNaN(nx) && !isNaN(ny)) { x = nx; y = ny; }
+    if (x === y) return 0;
+    return (x > y ? 1 : -1) * (ordem.desc ? -1 : 1);
+  });
+}
+
+/* --------------------------- desenho ------------------------------ */
+function desenharPedidos(lista) {
+  const corpo = document.querySelector("#tabPedidos tbody");
+  corpo.innerHTML = "";
+  if (!lista.length) { corpo.innerHTML = vazio(7, "Nenhum pedido com esses filtros."); return; }
+
+  const frag = document.createDocumentFragment();
+  lista.forEach(function (p) {
+    const tr = document.createElement("tr");
+    tr.setAttribute("aria-selected", String(p.Pedido_Linha) === estado.pedidoSel);
+    tr.innerHTML =
+      "<td>" + p.Pedido_Linha + "</td>" +
+      "<td>" + br(p.Data_Emissao) + "</td>" +
+      "<td>" + esc(p.Cliente) + "</td>" +
+      "<td>" + br(p.Data_Entrega) + "</td>" +
+      '<td class="tag ' + p.Status_Pedido_Key + '">' + esc(p.Status_Pedido) + "</td>" +
+      '<td class="num">' + p.Qtd_Itens_Produzidos + " / " + p.Qtd_Itens + "</td>" +
+      '<td class="num">' + p.Dias_Vencido + "</td>";
+    tr.onclick = function () {
+      estado.pedidoSel = (estado.pedidoSel === String(p.Pedido_Linha)) ? "" : String(p.Pedido_Linha);
+      render();
+    };
+    frag.appendChild(tr);
+  });
+  corpo.appendChild(frag);
+}
+
+function desenharItens(lista) {
+  const corpo = document.querySelector("#tabItens tbody");
+  corpo.innerHTML = "";
+  if (!lista.length) { corpo.innerHTML = vazio(6, "Nenhum item para os filtros atuais."); return; }
+
+  const frag = document.createDocumentFragment();
+  lista.slice(0, 3000).forEach(function (i) {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + i.Pedido_Linha + "</td>" +
+      '<td class="num">' + esc(i.Item_Pedido) + "</td>" +
+      '<td class="desc">' + esc(i.Produto) + "</td>" +
+      "<td>" + esc(i.Processo_Executado) + "</td>" +
+      '<td class="tag ' + chave(i.Status_Processo_Executado) + '">' + esc(i.Status_Processo_Executado) + "</td>" +
+      '<td class="tag ' + chave(i.Status_Final_Item) + '">' + esc(i.Status_Final_Item) + "</td>";
+    frag.appendChild(tr);
+  });
+  corpo.appendChild(frag);
+}
+
+const vazio = function (n, msg) { return '<tr><td class="vazio" colspan="' + n + '">' + msg + "</td></tr>"; };
+const chave = function (s) { return String(s || "").replace(/[ÃÁÀÂ]/g, "A").replace(/\s+/g, "_"); };
+const esc = function (s) {
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+};
+const br = function (d) { return d ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "—"; };
+const texto = function (id, v) { document.getElementById(id).textContent = v; };
+
+/* --------------------------- interação ---------------------------- */
+function montarClientes() {
+  const sel = document.getElementById("filtroCliente");
+  const nomes = Array.from(new Set(estado.pedidos.map(function (p) { return p.Cliente; })))
+    .filter(Boolean).sort();
+  nomes.forEach(function (n) {
+    const o = document.createElement("option");
+    o.value = o.textContent = n;
+    sel.appendChild(o);
+  });
+}
+
+document.querySelectorAll("[data-status]").forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll("[data-status]").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+    b.setAttribute("aria-pressed", "true");
+    estado.statusPedido = b.dataset.status;
+    estado.pedidoSel = "";
+    render();
+  };
+});
+
+document.querySelectorAll("[data-periodo]").forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll("[data-periodo]").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+    b.setAttribute("aria-pressed", "true");
+    estado.periodo = b.dataset.periodo;
+    render();
+  };
+});
+
+document.getElementById("buscaPedido").oninput = function (e) {
+  estado.buscaPedido = e.target.value; estado.pedidoSel = ""; render();
+};
+document.getElementById("filtroCliente").onchange = function (e) {
+  estado.clienteSel = e.target.value; estado.pedidoSel = ""; render();
+};
+document.getElementById("buscaItem").oninput = function (e) {
+  estado.buscaItem = e.target.value; render();
+};
+
+function ligarOrdenacao(tabela, ordem) {
+  document.querySelectorAll("#" + tabela + " thead th").forEach(function (th) {
+    th.onclick = function () {
+      const c = th.dataset.col;
+      if (ordem.col === c) ordem.desc = !ordem.desc; else { ordem.col = c; ordem.desc = false; }
+      render();
+    };
+  });
+}
+ligarOrdenacao("tabPedidos", estado.ordemPedidos);
+ligarOrdenacao("tabItens", estado.ordemItens);
+
+document.getElementById("exportaPedidos").onclick = function () {
+  baixarCSV("pedidos.csv", ordenar(pedidosFiltrados(), estado.ordemPedidos));
+};
+document.getElementById("exportaItens").onclick = function () {
+  baixarCSV("itens.csv", ordenar(itensFiltrados(), estado.ordemItens));
+};
+
+function baixarCSV(nome, lista) {
+  if (!lista.length) return;
+  const cols = Object.keys(lista[0]);
+  const linhas = [cols.join(";")].concat(lista.map(function (o) {
+    return cols.map(function (c) { return '"' + String(o[c] === undefined ? "" : o[c]).replace(/"/g, '""') + '"'; }).join(";");
+  }));
+  const url = URL.createObjectURL(new Blob(["\uFEFF" + linhas.join("\n")], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nome; a.click();
+  URL.revokeObjectURL(url);
+}
+
+carregar();
+</script>
+</body>
+</html>
