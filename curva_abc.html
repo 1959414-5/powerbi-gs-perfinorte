@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfinorte — Curva ABC</title>
+<style>
+:root{
+  --fundo:#101c30; --painel:#16233b; --painel-2:#1b2b47; --linha:#26385a;
+  --texto:#e8eef8; --texto-fraco:#93a4c0; --ciano:#4fc3f7; --ciano-fraco:#2a5f85;
+  --verde:#4ade80; --vermelho:#ff6b6b; --amarelo:#ffc857; --raio:10px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;overflow:hidden}
+body{
+  background:var(--fundo);color:var(--texto);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:13px;
+  display:flex;flex-direction:column;gap:10px;padding:12px 16px;
+}
+
+.topo{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;flex:0 0 auto}
+.marca .empresa{font-size:14px;letter-spacing:.16em;color:var(--texto-fraco)}
+.marca h1{margin:3px 0 0;font-size:30px;font-weight:300;letter-spacing:.08em;line-height:1}
+
+.filtros{
+  margin-left:auto;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;
+  background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);padding:8px 12px;
+}
+.campo{display:flex;flex-direction:column;gap:3px}
+.campo label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--texto-fraco)}
+select{background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 8px;font:inherit;height:29px;min-width:135px}
+select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+.btn{background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 13px;font:inherit;height:29px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--ciano);color:var(--texto)}
+.btn[aria-pressed=true]{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
+.btn.primario{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
+.btn.primario:hover{filter:brightness(1.1);color:#08172b}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn:focus-visible{outline:2px solid var(--ciano);outline-offset:2px}
+
+/* ---------- grade principal ---------- */
+.grade{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 300px;gap:10px}
+.coluna{display:flex;flex-direction:column;gap:10px;min-height:0}
+
+.painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.painel > h2{margin:0;padding:8px 14px;font-size:13.5px;font-weight:500;color:var(--texto-fraco);
+  background:var(--painel-2);border-bottom:1px solid var(--linha);flex:0 0 auto}
+#painelABC{flex:1 1 64%}
+#painelPeriodo{flex:1 1 36%}
+
+/* ---------- topo do painel ABC ---------- */
+.resumo{flex:0 0 auto;padding:11px 14px;display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.cortes{display:flex;flex-direction:column;gap:6px}
+.cortes .rotulo{font-size:11px;color:var(--texto-fraco)}
+.cortes .botoes{display:flex;gap:5px}
+
+.waffles{display:flex;gap:26px;margin-left:auto;align-items:center}
+.waffle{display:flex;gap:11px;align-items:center}
+.waffle .grade-pontos{display:grid;grid-template-columns:repeat(10,7px);gap:3px}
+.ponto{width:7px;height:7px;border-radius:50%;background:#243busa;background:#22recolor}
+.ponto{background:#223a5c}
+.ponto.cheio{background:var(--ciano)}
+.waffle .numero{font-size:34px;font-weight:300;line-height:1;color:var(--ciano)}
+.waffle .legenda{font-size:10px;letter-spacing:.08em;color:var(--texto-fraco);margin-top:3px}
+
+#frase{padding:0 14px 9px;font-size:13.5px;flex:0 0 auto}
+#frase b{color:var(--ciano);font-weight:600}
+
+/* ---------- tabela ---------- */
+.rolagem{flex:1 1 auto;min-height:0;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+thead th{position:sticky;top:0;z-index:2;background:var(--painel-2);color:var(--ciano);
+  text-align:left;font-weight:600;padding:7px 10px;border-bottom:1px solid var(--linha);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+thead th:hover{color:#fff}
+.puxador{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
+.puxador:hover{background:var(--ciano)}
+tbody td{padding:5px 10px;border-bottom:1px solid rgba(38,56,90,.5);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:rgba(79,195,247,.07)}
+tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.centro{text-align:center}
+
+.barra{position:relative;background:linear-gradient(90deg,var(--ciano-fraco) var(--p),transparent var(--p));
+  border-radius:3px;padding-left:6px}
+.classe{display:inline-block;min-width:22px;text-align:center;border-radius:4px;
+  font-weight:700;font-size:11px;padding:1px 5px}
+.classe.A{background:rgba(79,195,247,.22);color:var(--ciano)}
+.classe.B{background:rgba(255,200,87,.18);color:var(--amarelo)}
+.classe.C{background:rgba(147,164,192,.16);color:var(--texto-fraco)}
+.delta.sobe{color:var(--verde)}
+.delta.desce{color:var(--vermelho)}
+.delta.igual{color:var(--texto-fraco)}
+
+.rodape{flex:0 0 auto;padding:6px 14px;border-top:1px solid var(--linha);
+  display:flex;justify-content:space-between;font-size:12.5px;color:var(--texto-fraco)}
+.rodape b{color:var(--texto);font-size:14px}
+
+/* ---------- gráficos ---------- */
+.corpo{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 14px}
+.periodos{display:flex;flex-direction:column;gap:9px;height:100%;justify-content:center}
+.periodo{display:grid;grid-template-columns:78px 1fr 110px;gap:9px;align-items:center}
+.periodo .rot{font-size:11.5px;color:var(--texto-fraco)}
+.trilho{position:relative;height:22px;background:rgba(38,56,90,.45);border-radius:4px;overflow:visible}
+.preenche{height:100%;background:var(--ciano-fraco);border-radius:4px}
+.preenche.acima{background:var(--ciano)}
+.media-linha{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--amarelo)}
+.periodo .val{font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.legendas{display:flex;gap:16px;font-size:11px;color:var(--texto-fraco);padding:0 14px 8px;flex:0 0 auto}
+.bolinha{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+
+.ramos{display:flex;flex-direction:column;gap:5px}
+.ramo{display:grid;grid-template-columns:88px 1fr;gap:7px;align-items:center;cursor:pointer}
+.ramo:hover .rot{color:var(--texto)}
+.ramo[aria-selected=true] .rot{color:var(--ciano);font-weight:600}
+.ramo .rot{font-size:10.5px;color:var(--texto-fraco);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ramo .trilho2{position:relative;height:17px;display:flex;align-items:center;gap:6px}
+.ramo .barra2{height:15px;background:var(--ciano-fraco);border-radius:3px;flex:0 0 auto}
+.ramo[aria-selected=true] .barra2{background:var(--ciano)}
+.ramo .v{font-size:10.5px;color:var(--texto-fraco);white-space:nowrap}
+
+.vazio{padding:22px;text-align:center;color:var(--texto-fraco);white-space:normal}
+#aviso{flex:0 0 auto;background:#3a2a12;border:1px solid #6b4d1e;color:#ffd08a;
+  border-radius:var(--raio);padding:8px 13px;font-size:12.5px;display:none}
+</style>
+</head>
+<body>
+
+<div id="aviso"></div>
+
+<div class="topo">
+  <div class="marca">
+    <div class="empresa">PERFINORTE</div>
+    <h1>Curva ABC</h1>
+  </div>
+  <div class="filtros">
+    <div class="campo"><label for="fVendedor">Vendedor</label><select id="fVendedor"><option value="">Todos</option></select></div>
+    <div class="campo"><label for="fMes">Mês</label><select id="fMes"><option value="">Todos</option></select></div>
+    <div class="campo"><label for="fAno">Ano</label><select id="fAno"><option value="">Todos</option></select></div>
+    <div class="campo"><label for="fVisao">Visão</label>
+      <select id="fVisao"><option value="Mês">Mês</option><option value="Ano">Ano</option></select></div>
+    <div class="campo"><label>&nbsp;</label><button class="btn" id="btnLimpar">Limpar filtros</button></div>
+    <div class="campo"><label>&nbsp;</label><button class="btn primario" id="btnMostrar">Mostrar</button></div>
+  </div>
+</div>
+
+<div class="grade">
+  <div class="coluna">
+
+    <section class="painel" id="painelABC">
+      <h2>Curva ABC de clientes</h2>
+
+      <div class="resumo">
+        <div class="cortes">
+          <span class="rotulo">Selecione o percentual de faturamento</span>
+          <div class="botoes">
+            <button class="btn" data-corte="60" aria-pressed="false">60%</button>
+            <button class="btn" data-corte="70" aria-pressed="false">70%</button>
+            <button class="btn" data-corte="80" aria-pressed="true">80%</button>
+            <button class="btn" data-corte="90" aria-pressed="false">90%</button>
+          </div>
+        </div>
+
+        <div class="waffles">
+          <div class="waffle">
+            <div class="grade-pontos" id="waffleClientes"></div>
+            <div><div class="numero" id="pctClientes">–</div><div class="legenda">QTD CLIENTES</div></div>
+          </div>
+          <div class="waffle">
+            <div class="grade-pontos" id="waffleFaturamento"></div>
+            <div><div class="numero" id="pctFaturamento">–</div><div class="legenda">FATURAMENTO</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="frase"></div>
+
+      <div class="rolagem">
+        <table id="tabABC">
+          <colgroup></colgroup>
+          <thead><tr>
+            <th data-col="cliente" data-larg="300">Cliente</th>
+            <th data-col="rank" data-larg="70" class="num">Rank</th>
+            <th data-col="valor" data-larg="180" class="num">Faturamento</th>
+            <th data-col="acumulado" data-larg="120" class="num">% acumulado</th>
+            <th data-col="classe" data-larg="80" class="centro">Classe</th>
+            <th data-col="delta" data-larg="80" class="centro" title="Variação de posição em relação ao período anterior">Δ rank</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="rodape">
+        <span id="contagem"></span>
+        <span>Total <b id="totalGeral">–</b></span>
+      </div>
+    </section>
+
+    <section class="painel" id="painelPeriodo">
+      <h2>Faturamento por período vs média histórica</h2>
+      <div class="legendas">
+        <span><i class="bolinha" style="background:var(--ciano)"></i>Faturamento do período</span>
+        <span><i class="bolinha" style="background:var(--amarelo)"></i>Média do período</span>
+      </div>
+      <div class="corpo"><div class="periodos" id="graficoPeriodo"></div></div>
+    </section>
+
+  </div>
+
+  <section class="painel">
+    <h2>Faturamento por ramo</h2>
+    <div class="corpo"><div class="ramos" id="graficoRamos"></div></div>
+  </section>
+</div>
+
+<script src="dados_abc_demo.js" onerror="window.DADOS_ABC_DEMO=null"></script>
+<script>
+/* Cole a URL /exec do app da web. O parâmetro ?base=abc é acrescentado sozinho. */
+const API_URL = "";
+
+const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+const estado = {
+  linhas: [],
+  vendedor: "", mes: "", ano: "", visao: "Mês",
+  corte: 80, ramoSel: "", clienteSel: "",
+  ordem: { col: "rank", desc: false }
+};
+
+/* ------------------------ carregamento ------------------------ */
+async function carregar() {
+  const botao = document.getElementById("btnMostrar");
+  botao.disabled = true; botao.textContent = "Atualizando…";
+  esconderAviso();
+
+  let dados = null;
+  if (API_URL) {
+    try {
+      const sep = API_URL.indexOf("?") < 0 ? "?" : "&";
+      const r = await fetch(API_URL + sep + "base=abc&t=" + Date.now(), { redirect: "follow" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      dados = await r.json();
+    } catch (e) {
+      avisar("Não consegui ler a planilha (" + e.message + "). A URL precisa terminar em /exec"
+        + " e a implantação precisa estar como \"Qualquer pessoa\". Mostrando os dados de exemplo.");
+    }
+  } else {
+    avisar("API_URL está vazio em curva-abc.html — usando os dados de exemplo embutidos.");
+  }
+
+  botao.disabled = false; botao.textContent = "Mostrar";
+  if (!dados) dados = window.DADOS_ABC_DEMO;
+  if (!dados) { avisar("Nenhuma fonte de dados disponível."); return; }
+
+  estado.linhas = paraObjetos(dados.F);
+  montarListas();
+  render();
+}
+
+function paraObjetos(t) {
+  if (!t || !t.rows) return [];
+  return t.rows.map(function (linha) {
+    const o = {};
+    t.cols.forEach(function (c, i) { o[c] = linha[i]; });
+    o.Valor = numero(o.Valor);
+    o.Ano = String(o.Ano); o.Mes = String(Number(o.Mes));
+    return o;
+  });
+}
+
+/** Aceita 1234.56 (número), "1234.56" e "1.234,56" — o Sheets devolve nos dois formatos. */
+function numero(v) {
+  if (typeof v === "number") return v;
+  let s = String(v == null ? "" : v).replace(/[R$\s]/g, "");
+  if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function avisar(m) { const e = document.getElementById("aviso"); e.textContent = m; e.style.display = "block"; }
+function esconderAviso() { document.getElementById("aviso").style.display = "none"; }
+
+/* --------------------------- filtros --------------------------- */
+function filtrar(ignorarRamo) {
+  return estado.linhas.filter(function (l) {
+    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
+    if (estado.ano && l.Ano !== estado.ano) return false;
+    if (estado.mes && l.Mes !== estado.mes) return false;
+    if (!ignorarRamo && estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
+    return true;
+  });
+}
+
+/* ---- agrupa por cliente, ordena, calcula rank / acumulado / classe ---- */
+function curva(linhas) {
+  const soma = {};
+  linhas.forEach(function (l) { soma[l.Cliente] = (soma[l.Cliente] || 0) + l.Valor; });
+
+  const lista = Object.keys(soma).map(function (c) { return { cliente: c, valor: soma[c] }; });
+  lista.sort(function (a, b) { return b.valor - a.valor; });
+
+  const total = lista.reduce(function (s, x) { return s + x.valor; }, 0);
+
+  // RANKX ... DENSE: valores iguais dividem a mesma posição
+  let acc = 0, rank = 0, anterior = null;
+  lista.forEach(function (x) {
+    if (x.valor !== anterior) { rank++; anterior = x.valor; }
+    x.rank = rank;
+    acc += x.valor;
+    x.acumulado = total ? acc / total : 0;
+    x.classe = x.acumulado <= 0.8 ? "A" : x.acumulado <= 0.95 ? "B" : "C";
+  });
+
+  return { lista: lista, total: total, maior: lista.length ? lista[0].valor : 0 };
+}
+
+/** Rank de cada cliente no período imediatamente anterior ao último selecionado. */
+function rankAnterior(linhasFiltradas) {
+  const chaves = {};
+  estado.linhas.forEach(function (l) { chaves[l.Ano + "-" + pad(l.Mes)] = 1; });
+  const todos = Object.keys(chaves).sort();
+
+  const sel = {};
+  linhasFiltradas.forEach(function (l) { sel[l.Ano + "-" + pad(l.Mes)] = 1; });
+  const selOrd = Object.keys(sel).sort();
+  if (!selOrd.length) return null;
+
+  const idx = todos.indexOf(selOrd[selOrd.length - 1]);
+  if (idx <= 0) return null;
+  const anterior = todos[idx - 1];
+
+  const base = estado.linhas.filter(function (l) {
+    if (l.Ano + "-" + pad(l.Mes) !== anterior) return false;
+    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
+    if (estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
+    return true;
+  });
+  if (!base.length) return null;
+
+  const mapa = {};
+  curva(base).lista.forEach(function (x) { mapa[x.cliente] = x.rank; });
+  return mapa;
+}
+
+const pad = function (m) { return String(m).length < 2 ? "0" + m : String(m); };
+
+/* --------------------------- render ---------------------------- */
+function render() {
+  const linhas = filtrar(false);
+  const c = curva(linhas);
+  const anterior = rankAnterior(linhas);
+
+  // ---- corte de Pareto: clientes cujo acumulado ainda cabe no corte ----
+  const alvo = estado.corte / 100;
+  let noCorte = 0, fatCorte = 0;
+  for (let i = 0; i < c.lista.length; i++) {
+    if (c.lista[i].acumulado > alvo) break;
+    noCorte++;
+    fatCorte += c.lista[i].valor;
+  }
+
+  const pctCli = c.lista.length ? noCorte / c.lista.length : 0;
+  const pctFat = c.total ? fatCorte / c.total : 0;
+
+  desenharWaffle("waffleClientes", pctCli);
+  desenharWaffle("waffleFaturamento", pctFat);
+  texto("pctClientes", Math.round(pctCli * 100) + "%");
+  texto("pctFaturamento", Math.round(pctFat * 100) + "%");
+
+  document.getElementById("frase").innerHTML = c.lista.length
+    ? "<b>" + noCorte + "</b> clientes representam <b>" + estado.corte
+      + "%</b> do seu faturamento, totalizando <b>" + moeda(fatCorte) + "</b>"
+    : "Sem faturamento para os filtros atuais.";
+
+  desenharTabela(c, anterior);
+  texto("contagem", c.lista.length + " clientes"
+    + (estado.ramoSel ? " no ramo " + estado.ramoSel : "")
+    + (estado.clienteSel ? " — " + estado.clienteSel + " selecionado" : ""));
+  texto("totalGeral", moeda(c.total));
+
+  desenharPeriodos();
+  desenharRamos();
+}
+
+function desenharWaffle(id, p) {
+  const cheios = Math.round(p * 100);
+  const partes = [];
+  for (let i = 0; i < 100; i++) partes.push('<div class="ponto' + (i < cheios ? " cheio" : "") + '"></div>');
+  document.getElementById(id).innerHTML = partes.join("");
+}
+
+function desenharTabela(c, anterior) {
+  const corpo = document.querySelector("#tabABC tbody");
+  if (!c.lista.length) { corpo.innerHTML = vazio(6, "Nenhum cliente com esses filtros."); return; }
+
+  const lista = ordenar(c.lista.slice(), estado.ordem, anterior);
+  const partes = [];
+
+  for (let n = 0; n < lista.length && n < 3000; n++) {
+    const x = lista[n];
+    const largura = c.maior ? (x.valor / c.maior * 100) : 0;
+
+    let delta = "";
+    if (anterior && anterior[x.cliente] !== undefined) {
+      const d = anterior[x.cliente] - x.rank;   // subiu = ganhou posições
+      delta = d > 0 ? '<span class="delta sobe">▲ ' + d + "</span>"
+        : d < 0 ? '<span class="delta desce">▼ ' + (-d) + "</span>"
+          : '<span class="delta igual">–</span>';
+    }
+
+    partes.push('<tr data-cliente="' + esc(x.cliente) + '"'
+      + (x.cliente === estado.clienteSel ? ' aria-selected="true"' : "") + ">"
+      + '<td title="' + esc(x.cliente) + '">' + esc(x.cliente) + "</td>"
+      + '<td class="num">' + x.rank + "</td>"
+      + '<td class="num barra" style="--p:' + largura.toFixed(1) + '%">' + moeda(x.valor) + "</td>"
+      + '<td class="num">' + (x.acumulado * 100).toFixed(2).replace(".", ",") + "%</td>"
+      + '<td class="centro"><span class="classe ' + x.classe + '">' + x.classe + "</span></td>"
+      + '<td class="centro">' + delta + "</td></tr>");
+  }
+  corpo.innerHTML = partes.join("");
+}
+
+function ordenar(lista, ordem, anterior) {
+  const c = ordem.col;
+  return lista.sort(function (a, b) {
+    let x, y;
+    if (c === "delta") {
+      x = anterior && anterior[a.cliente] !== undefined ? anterior[a.cliente] - a.rank : -999;
+      y = anterior && anterior[b.cliente] !== undefined ? anterior[b.cliente] - b.rank : -999;
+    } else { x = a[c]; y = b[c]; }
+    if (x === y) return 0;
+    return (x > y ? 1 : -1) * (ordem.desc ? -1 : 1);
+  });
+}
+
+/* ---- faturamento por período (respeita a visão Mês/Ano) ---- */
+function desenharPeriodos() {
+  const linhas = estado.linhas.filter(function (l) {
+    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
+    if (estado.ano && l.Ano !== estado.ano) return false;
+    if (estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
+    if (estado.clienteSel && l.Cliente !== estado.clienteSel) return false;
+    return true;
+  });
+
+  const porAno = estado.visao === "Ano";
+  const soma = {};
+  linhas.forEach(function (l) {
+    const k = porAno ? l.Ano : (l.Ano + "-" + pad(l.Mes));
+    soma[k] = (soma[k] || 0) + l.Valor;
+  });
+
+  const chaves = Object.keys(soma).sort();
+  const alvo = document.getElementById("graficoPeriodo");
+  if (!chaves.length) { alvo.innerHTML = '<div class="vazio">Sem faturamento no recorte.</div>'; return; }
+
+  const valores = chaves.map(function (k) { return soma[k]; });
+  const media = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
+  const max = Math.max.apply(null, valores.concat([media])) * 1.06;
+
+  alvo.innerHTML = chaves.map(function (k) {
+    const v = soma[k];
+    const rotulo = porAno ? k : MESES[Number(k.slice(5)) - 1] + "/" + k.slice(0, 4);
+    return '<div class="periodo">'
+      + '<span class="rot">' + rotulo + "</span>"
+      + '<div class="trilho">'
+      + '<div class="preenche' + (v >= media ? " acima" : "") + '" style="width:' + (v / max * 100).toFixed(1) + '%"></div>'
+      + '<div class="media-linha" style="left:' + (media / max * 100).toFixed(1) + '%" title="Média ' + moeda(media) + '"></div>'
+      + "</div>"
+      + '<span class="val">' + moeda(v) + "</span></div>";
+  }).join("");
+}
+
+/* ---- faturamento por ramo (clicável, vira filtro) ---- */
+function desenharRamos() {
+  const linhas = filtrar(true).filter(function (l) {
+    return !estado.clienteSel || l.Cliente === estado.clienteSel;
+  });
+
+  const soma = {};
+  linhas.forEach(function (l) {
+    const r = l.Ramo || "SEM RAMO";
+    soma[r] = (soma[r] || 0) + l.Valor;
+  });
+
+  const lista = Object.keys(soma).map(function (r) { return { ramo: r, valor: soma[r] }; })
+    .sort(function (a, b) { return b.valor - a.valor; });
+
+  const alvo = document.getElementById("graficoRamos");
+  if (!lista.length) { alvo.innerHTML = '<div class="vazio">Sem dados.</div>'; return; }
+
+  const max = lista[0].valor || 1;
+  alvo.innerHTML = lista.map(function (x) {
+    return '<div class="ramo" data-ramo="' + esc(x.ramo) + '"'
+      + (x.ramo === estado.ramoSel ? ' aria-selected="true"' : "") + ">"
+      + '<span class="rot" title="' + esc(x.ramo) + '">' + esc(x.ramo) + "</span>"
+      + '<div class="trilho2"><div class="barra2" style="width:'
+      + Math.max(2, x.valor / max * 62).toFixed(1) + '%"></div>'
+      + '<span class="v">' + milhoes(x.valor) + "</span></div></div>";
+  }).join("");
+}
+
+/* -------------------------- formatação ------------------------- */
+const moeda = function (v) {
+  return "R$ " + (Number(v) || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+const milhoes = function (v) {
+  return "R$ " + (v / 1e6).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " Mi";
+};
+const esc = function (s) {
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+};
+const vazio = function (n, m) { return '<tr><td class="vazio" colspan="' + n + '">' + m + "</td></tr>"; };
+const texto = function (id, v) { document.getElementById(id).textContent = v; };
+
+/* ------------------------ listas dos filtros ------------------- */
+function montarListas() {
+  preencher("fVendedor", unicos("Vendedor").sort());
+  preencher("fAno", unicos("Ano").sort());
+
+  const meses = unicos("Mes").map(Number).sort(function (a, b) { return a - b; });
+  const sel = document.getElementById("fMes");
+  const atual = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  meses.forEach(function (m) {
+    const o = document.createElement("option");
+    o.value = String(m);
+    o.textContent = MESES[m - 1];
+    sel.appendChild(o);
+  });
+  sel.value = meses.indexOf(Number(atual)) >= 0 ? atual : "";
+}
+
+function unicos(campo) {
+  const v = {};
+  estado.linhas.forEach(function (l) { if (l[campo] !== "" && l[campo] != null) v[l[campo]] = 1; });
+  return Object.keys(v);
+}
+
+function preencher(id, valores) {
+  const sel = document.getElementById(id);
+  const atual = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  valores.forEach(function (v) {
+    const o = document.createElement("option");
+    o.value = o.textContent = v;
+    sel.appendChild(o);
+  });
+  sel.value = valores.indexOf(atual) >= 0 ? atual : "";
+}
+
+/* --------------------------- interação ------------------------- */
+const LIGACOES = { fVendedor: "vendedor", fMes: "mes", fAno: "ano", fVisao: "visao" };
+
+Object.keys(LIGACOES).forEach(function (id) {
+  document.getElementById(id).addEventListener("change", function (ev) {
+    estado[LIGACOES[id]] = ev.target.value;
+    estado.clienteSel = "";
+    render();
+  });
+});
+
+document.querySelectorAll("[data-corte]").forEach(function (b) {
+  b.onclick = function () {
+    estado.corte = Number(b.dataset.corte);
+    document.querySelectorAll("[data-corte]").forEach(function (o) {
+      o.setAttribute("aria-pressed", String(o === b));
+    });
+    render();
+  };
+});
+
+document.getElementById("graficoRamos").addEventListener("click", function (ev) {
+  const el = ev.target.closest("[data-ramo]");
+  if (!el) return;
+  estado.ramoSel = estado.ramoSel === el.dataset.ramo ? "" : el.dataset.ramo;
+  estado.clienteSel = "";
+  render();
+});
+
+document.querySelector("#tabABC tbody").addEventListener("click", function (ev) {
+  const tr = ev.target.closest("tr[data-cliente]");
+  if (!tr) return;
+  estado.clienteSel = estado.clienteSel === tr.dataset.cliente ? "" : tr.dataset.cliente;
+  render();
+});
+
+document.getElementById("btnLimpar").onclick = function () {
+  ["fVendedor", "fMes", "fAno"].forEach(function (id) { document.getElementById(id).value = ""; });
+  document.getElementById("fVisao").value = "Mês";
+  estado.vendedor = estado.mes = estado.ano = "";
+  estado.visao = "Mês";
+  estado.ramoSel = estado.clienteSel = "";
+  estado.corte = 80;
+  document.querySelectorAll("[data-corte]").forEach(function (o) {
+    o.setAttribute("aria-pressed", String(o.dataset.corte === "80"));
+  });
+  render();
+};
+
+document.getElementById("btnMostrar").onclick = carregar;
+
+/* ordenação e redimensionamento */
+(function prepararTabela() {
+  const tabela = document.getElementById("tabABC");
+  const grupo = tabela.querySelector("colgroup");
+
+  tabela.querySelectorAll("thead th").forEach(function (th) {
+    const col = document.createElement("col");
+    col.style.width = th.dataset.larg + "px";
+    grupo.appendChild(col);
+
+    th.style.position = "sticky";
+    const puxador = document.createElement("div");
+    puxador.className = "puxador";
+    th.appendChild(puxador);
+
+    th.addEventListener("click", function (ev) {
+      if (ev.target === puxador) return;
+      const c = th.dataset.col;
+      if (estado.ordem.col === c) estado.ordem.desc = !estado.ordem.desc;
+      else { estado.ordem.col = c; estado.ordem.desc = (c === "valor" || c === "delta"); }
+      render();
+    });
+
+    puxador.addEventListener("mousedown", function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, l0 = th.getBoundingClientRect().width;
+      const mover = function (e) { col.style.width = Math.max(50, l0 + e.clientX - x0) + "px"; };
+      const soltar = function () {
+        document.removeEventListener("mousemove", mover);
+        document.removeEventListener("mouseup", soltar);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.addEventListener("mousemove", mover);
+      document.addEventListener("mouseup", soltar);
+    });
+  });
+})();
+
+carregar();
+</script>
+</body>
+</html>
