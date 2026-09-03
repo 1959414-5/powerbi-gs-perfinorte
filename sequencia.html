@@ -220,6 +220,9 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
 const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwEehiiPDWe3rWJ2XffRXWE7oqgSMp6HodPsI0kzIEb-Z_XDA/exec";
 
 const ETAPAS = ["PROGRAMAÇÃO", "CORTE", "DOBRA", "CALANDRA"];
+const CHAVE_FILTROS = "perfinorte:sequencia:filtros";
+const CAMPOS_SALVOS = ["material", "espessura", "cliente", "de", "ate",
+  "soAtrasados", "etapa", "ordem"];
 const LIMITE = 3000;
 
 /* Situações que significam "já está na máquina", não "esperando". */
@@ -285,6 +288,7 @@ async function carregar() {
     });
 
   montarListas();
+  restaurarFiltros();
   render();
 }
 
@@ -577,6 +581,11 @@ function MultiFiltro(id, rotulo, aoMudar) {
     });
     desenhar();
   };
+  this.marcar = function (valores) {
+    marcadas = {};
+    (valores || []).forEach(function (v) { marcadas[v] = 1; });
+    desenhar();
+  };
   this.limpar = function () { marcadas = {}; desenhar(); };
   this.fechar = function () { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); };
 
@@ -586,6 +595,39 @@ function MultiFiltro(id, rotulo, aoMudar) {
 
 const MULTIS = [];
 function fecharTodos() { MULTIS.forEach(function (m) { m.fechar(); }); }
+
+/* ---- filtros lembrados entre visitas (degrada sem armazenamento) ---- */
+function salvarFiltros() {
+  try {
+    const g = {};
+    CAMPOS_SALVOS.forEach(function (k) { g[k] = estado[k]; });
+    localStorage.setItem(CHAVE_FILTROS, JSON.stringify(g));
+  } catch (e) { /* sem armazenamento, sem problema */ }
+}
+function lerFiltrosSalvos() {
+  try {
+    const b = localStorage.getItem(CHAVE_FILTROS);
+    return b ? JSON.parse(b) : null;
+  } catch (e) { return null; }
+}
+function limparFiltrosSalvos() {
+  try { localStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* nada a fazer */ }
+}
+function restaurarFiltros() {
+  const salvo = lerFiltrosSalvos();
+  if (!salvo) return;
+  CAMPOS_SALVOS.forEach(function (k) {
+    if (salvo[k] === undefined) return;
+    estado[k] = salvo[k];
+    if (FILTROS[k]) FILTROS[k].marcar(salvo[k]);
+  });
+  if (estado.de) document.getElementById("fDe").value = estado.de;
+  if (estado.ate) document.getElementById("fAte").value = estado.ate;
+  document.getElementById("btnAtrasados").setAttribute("aria-pressed", String(!!estado.soAtrasados));
+  document.querySelectorAll("[data-ordem]").forEach(function (o) {
+    o.setAttribute("aria-pressed", String(o.dataset.ordem === estado.ordem));
+  });
+}
 document.addEventListener("click", function (ev) {
   if (!ev.target.closest(".multi")) fecharTodos();
 });
@@ -616,13 +658,13 @@ function unicos(campo) {
 
 /* --------------------------- interação ------------------------- */
 FILTROS.material = new MultiFiltro("fMaterial", "Material", function (v) {
-  estado.material = v; estado.grupoSel = ""; render();
+  estado.material = v; estado.grupoSel = ""; salvarFiltros(); render();
 });
 FILTROS.espessura = new MultiFiltro("fEspessura", "Espessura", function (v) {
-  estado.espessura = v; estado.grupoSel = ""; render();
+  estado.espessura = v; estado.grupoSel = ""; salvarFiltros(); render();
 });
 FILTROS.cliente = new MultiFiltro("fCliente", "Cliente", function (v) {
-  estado.cliente = v; estado.grupoSel = ""; render();
+  estado.cliente = v; estado.grupoSel = ""; salvarFiltros(); render();
 });
 
 const LIGACOES = { fBusca: "busca", fDe: "de", fAte: "ate" };
@@ -632,6 +674,7 @@ Object.keys(LIGACOES).forEach(function (id) {
   el.addEventListener(el.tagName === "SELECT" || el.type === "date" ? "change" : "input", function () {
     estado[LIGACOES[id]] = el.value;
     estado.grupoSel = "";
+    salvarFiltros();
     render();
   });
 });
@@ -642,6 +685,7 @@ document.getElementById("etapas").addEventListener("click", function (ev) {
   estado.etapa = el.dataset.etapa;
   estado.grupoSel = "";
   estado.ordemSeq = { col: "pos", desc: false };
+  salvarFiltros();
   render();
 });
 
@@ -652,6 +696,7 @@ document.querySelectorAll("[data-ordem]").forEach(function (b) {
     document.querySelectorAll("[data-ordem]").forEach(function (o) {
       o.setAttribute("aria-pressed", String(o === b));
     });
+    salvarFiltros();
     render();
   };
 });
@@ -667,6 +712,7 @@ document.getElementById("btnAtrasados").onclick = function () {
   estado.soAtrasados = !estado.soAtrasados;
   this.setAttribute("aria-pressed", String(estado.soAtrasados));
   estado.grupoSel = "";
+  salvarFiltros();
   render();
 };
 
@@ -688,6 +734,7 @@ document.getElementById("btnLimpar").onclick = function () {
   document.querySelectorAll("[data-ordem]").forEach(function (o) {
     o.setAttribute("aria-pressed", String(o.dataset.ordem === "fila"));
   });
+  limparFiltrosSalvos();
   render();
 };
 
