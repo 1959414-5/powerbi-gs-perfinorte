@@ -31,6 +31,33 @@ body{
 select{background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
   border-radius:6px;padding:5px 8px;font:inherit;height:29px;min-width:135px}
 select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+/* ---- filtro de múltipla escolha ---- */
+.multi{position:relative}
+.multi-btn{width:100%;min-width:150px;height:29px;text-align:left;cursor:pointer;
+  background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 24px 5px 8px;font:inherit;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.multi-btn::after{content:"";position:absolute;right:9px;top:12px;
+  border:4px solid transparent;border-top-color:var(--texto-fraco)}
+.multi-btn:hover,.multi-btn[aria-expanded=true]{border-color:var(--ciano)}
+.multi-btn.ativo{color:var(--ciano);font-weight:600}
+.multi-menu{position:absolute;z-index:30;top:32px;left:0;min-width:230px;max-width:330px;
+  background:var(--painel-2);border:1px solid var(--ciano);border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);padding:7px}
+.multi-menu[hidden]{display:none}
+.multi-menu input[type=search]{width:100%;min-width:0;margin-bottom:6px}
+.multi-acoes{display:flex;gap:6px;margin-bottom:6px}
+.multi-acoes button{flex:1;height:25px;font-size:11.5px;padding:0 6px;
+  background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
+  border-radius:5px;cursor:pointer}
+.multi-acoes button:hover{border-color:var(--ciano);color:var(--texto)}
+.multi-lista{max-height:220px;overflow:auto}
+.multi-lista label{display:flex;gap:7px;align-items:center;padding:3px 4px;
+  border-radius:4px;cursor:pointer;font-size:12.5px}
+.multi-lista label:hover{background:rgba(79,195,247,.1)}
+.multi-lista input{min-width:0;height:auto;accent-color:var(--ciano)}
+.multi-vazio{padding:10px;text-align:center;color:var(--texto-fraco);font-size:11.5px}
+
 .btn{background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
   border-radius:6px;padding:5px 13px;font:inherit;height:29px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--ciano);color:var(--texto)}
@@ -108,6 +135,7 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
 .col .v{font-size:10.5px;text-align:center;color:var(--texto-fraco);margin-bottom:3px;white-space:nowrap}
 .col .bar{background:var(--ciano-fraco);border-radius:3px 3px 0 0;min-height:2px;transition:height .15s}
 .col.acima .bar{background:var(--ciano)}
+.col.fora{opacity:.32}
 .col:hover .bar{filter:brightness(1.25)}
 .media-h{
   position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--amarelo);
@@ -148,9 +176,9 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
     <h1>Curva ABC</h1>
   </div>
   <div class="filtros">
-    <div class="campo"><label for="fVendedor">Vendedor</label><select id="fVendedor"><option value="">Todos</option></select></div>
-    <div class="campo"><label for="fMes">Mês</label><select id="fMes"><option value="">Todos</option></select></div>
-    <div class="campo"><label for="fAno">Ano</label><select id="fAno"><option value="">Todos</option></select></div>
+    <div class="campo"><label>Vendedor</label><div class="multi" id="fVendedor"></div></div>
+    <div class="campo"><label>Mês</label><div class="multi" id="fMes"></div></div>
+    <div class="campo"><label>Ano</label><div class="multi" id="fAno"></div></div>
     <div class="campo"><label for="fVisao">Visão</label>
       <select id="fVisao"><option value="Mês">Mês</option><option value="Ano">Ano</option></select></div>
     <div class="campo"><label>&nbsp;</label><button class="btn" id="btnLimpar">Limpar filtros</button></div>
@@ -233,10 +261,12 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
 const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwEehiiPDWe3rWJ2XffRXWE7oqgSMp6HodPsI0kzIEb-Z_XDA/exec";
 
 const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const CHAVE_FILTROS = "perfinorte:abc:filtros";
+const CAMPOS_SALVOS = ["vendedor", "mes", "ano", "visao", "corte"];
 
 const estado = {
   linhas: [],
-  vendedor: "", mes: "", ano: "", visao: "Mês",
+  vendedor: [], mes: [], ano: [], visao: "Mês",
   corte: 80, ramoSel: "", clienteSel: "",
   ordem: { col: "rank", desc: false }
 };
@@ -268,6 +298,7 @@ async function carregar() {
 
   estado.linhas = paraObjetos(dados.F);
   montarListas();
+  restaurarFiltros();
   render();
 }
 
@@ -298,9 +329,9 @@ function esconderAviso() { document.getElementById("aviso").style.display = "non
 /* --------------------------- filtros --------------------------- */
 function filtrar(ignorarRamo) {
   return estado.linhas.filter(function (l) {
-    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
-    if (estado.ano && l.Ano !== estado.ano) return false;
-    if (estado.mes && l.Mes !== estado.mes) return false;
+    if (estado.vendedor.length && estado.vendedor.indexOf(l.Vendedor) < 0) return false;
+    if (estado.ano.length && estado.ano.indexOf(l.Ano) < 0) return false;
+    if (estado.mes.length && estado.mes.indexOf(rotuloMes(l.Mes)) < 0) return false;
     if (!ignorarRamo && estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
     return true;
   });
@@ -346,7 +377,7 @@ function rankAnterior(linhasFiltradas) {
 
   const base = estado.linhas.filter(function (l) {
     if (l.Ano + "-" + pad(l.Mes) !== anterior) return false;
-    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
+    if (estado.vendedor.length && estado.vendedor.indexOf(l.Vendedor) < 0) return false;
     if (estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
     return true;
   });
@@ -451,8 +482,8 @@ function ordenar(lista, ordem, anterior) {
 /* ---- faturamento por período (respeita a visão Mês/Ano) ---- */
 function desenharPeriodos() {
   const linhas = estado.linhas.filter(function (l) {
-    if (estado.vendedor && l.Vendedor !== estado.vendedor) return false;
-    if (estado.ano && l.Ano !== estado.ano) return false;
+    if (estado.vendedor.length && estado.vendedor.indexOf(l.Vendedor) < 0) return false;
+    if (estado.ano.length && estado.ano.indexOf(l.Ano) < 0) return false;
     if (estado.ramoSel && l.Ramo !== estado.ramoSel) return false;
     if (estado.clienteSel && l.Cliente !== estado.clienteSel) return false;
     return true;
@@ -473,9 +504,14 @@ function desenharPeriodos() {
   const media = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
   const max = Math.max.apply(null, valores.concat([media])) * 1.12;
 
+  // o gráfico mostra todos os períodos, senão a média histórica perde sentido;
+  // os meses fora do filtro ficam esmaecidos
   const colunas = chaves.map(function (k) {
     const v = soma[k];
-    return '<div class="col' + (v >= media ? " acima" : "") + '" title="' + moeda(v) + '">'
+    const dentro = porAno || !estado.mes.length
+      || estado.mes.indexOf(MESES[Number(k.slice(5)) - 1]) >= 0;
+    return '<div class="col' + (v >= media ? " acima" : "") + (dentro ? "" : " fora")
+      + '" title="' + moeda(v) + '">'
       + '<span class="v">' + milhoes(v) + "</span>"
       + '<div class="bar" style="height:' + (v / max * 100).toFixed(1) + '%"></div></div>';
   }).join("");
@@ -536,21 +572,157 @@ const vazio = function (n, m) { return '<tr><td class="vazio" colspan="' + n + '
 const texto = function (id, v) { document.getElementById(id).textContent = v; };
 
 /* ------------------------ listas dos filtros ------------------- */
-function montarListas() {
-  preencher("fVendedor", unicos("Vendedor").sort());
-  preencher("fAno", unicos("Ano").sort());
 
-  const meses = unicos("Mes").map(Number).sort(function (a, b) { return a - b; });
-  const sel = document.getElementById("fMes");
-  const atual = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
-  meses.forEach(function (m) {
-    const o = document.createElement("option");
-    o.value = String(m);
-    o.textContent = MESES[m - 1];
-    sel.appendChild(o);
+/* ==================== filtro de múltipla escolha ====================
+ * Nenhuma marcada = todas. Traz busca, "marcar todos" e "limpar".
+ * "Marcar todos" respeita a busca do painel.
+ */
+function MultiFiltro(id, aoMudar) {
+  const raiz = document.getElementById(id);
+  const botao = document.createElement("button");
+  botao.className = "multi-btn";
+  botao.type = "button";
+  botao.setAttribute("aria-expanded", "false");
+
+  const menu = document.createElement("div");
+  menu.className = "multi-menu";
+  menu.hidden = true;
+  menu.innerHTML = '<input type="search" placeholder="Filtrar lista">'
+    + '<div class="multi-acoes"><button type="button" data-acao="todos">Marcar todos</button>'
+    + '<button type="button" data-acao="limpar">Limpar</button></div>'
+    + '<div class="multi-lista"></div>';
+
+  raiz.appendChild(botao);
+  raiz.appendChild(menu);
+
+  const busca = menu.querySelector("input");
+  const lista = menu.querySelector(".multi-lista");
+  let opcoes = [], marcadas = {};
+
+  function rotulo() {
+    const n = Object.keys(marcadas).length;
+    botao.classList.toggle("ativo", n > 0);
+    if (n === 0) return "Todos";
+    if (n === 1) return Object.keys(marcadas)[0];
+    if (n === opcoes.length) return "Todos (" + n + ")";
+    return n + " selecionados";
+  }
+
+  function desenhar() {
+    const t = busca.value.trim().toLowerCase();
+    const vis = opcoes.filter(function (o) { return !t || o.toLowerCase().indexOf(t) >= 0; });
+    lista.innerHTML = vis.length
+      ? vis.map(function (o) {
+        return '<label><input type="checkbox" value="' + escAttr(o) + '"'
+          + (marcadas[o] ? " checked" : "") + "><span>" + escAttr(o) + "</span></label>";
+      }).join("")
+      : '<div class="multi-vazio">Nada encontrado</div>';
+    botao.textContent = rotulo();
+  }
+
+  botao.onclick = function () {
+    const abrir = menu.hidden;
+    fecharTodos();
+    menu.hidden = !abrir;
+    botao.setAttribute("aria-expanded", String(abrir));
+    if (abrir) { busca.value = ""; desenhar(); busca.focus(); }
+  };
+
+  busca.oninput = desenhar;
+
+  menu.addEventListener("click", function (ev) {
+    const acao = ev.target.closest("[data-acao]");
+    if (acao) {
+      const t = busca.value.trim().toLowerCase();
+      const alvo = opcoes.filter(function (o) { return !t || o.toLowerCase().indexOf(t) >= 0; });
+      if (acao.dataset.acao === "todos") alvo.forEach(function (o) { marcadas[o] = 1; });
+      else alvo.forEach(function (o) { delete marcadas[o]; });
+      desenhar();
+      aoMudar(Object.keys(marcadas));
+      return;
+    }
+    const cx = ev.target.closest("input[type=checkbox]");
+    if (!cx) return;
+    if (cx.checked) marcadas[cx.value] = 1; else delete marcadas[cx.value];
+    botao.textContent = rotulo();
+    aoMudar(Object.keys(marcadas));
   });
-  sel.value = meses.indexOf(Number(atual)) >= 0 ? atual : "";
+
+  this.setOpcoes = function (valores) {
+    opcoes = valores;
+    Object.keys(marcadas).forEach(function (k) {
+      if (valores.indexOf(k) < 0) delete marcadas[k];   // sumiu da base
+    });
+    desenhar();
+  };
+  this.marcar = function (valores) {
+    marcadas = {};
+    (valores || []).forEach(function (v) { marcadas[v] = 1; });
+    desenhar();
+  };
+  this.limpar = function () { marcadas = {}; desenhar(); };
+  this.fechar = function () { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); };
+
+  MULTIS.push(this);
+  desenhar();
+}
+
+const MULTIS = [];
+function fecharTodos() { MULTIS.forEach(function (m) { m.fechar(); }); }
+document.addEventListener("click", function (ev) {
+  if (!ev.target.closest(".multi")) fecharTodos();
+});
+const escAttr = function (s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+};
+
+/* ==================== filtros lembrados entre visitas ====================
+ * Guarda a escolha no navegador. Se o armazenamento estiver bloqueado
+ * (aba anônima, política do navegador), a página segue funcionando normal.
+ */
+function salvarFiltros() {
+  try {
+    const guardar = {};
+    CAMPOS_SALVOS.forEach(function (k) { guardar[k] = estado[k]; });
+    localStorage.setItem(CHAVE_FILTROS, JSON.stringify(guardar));
+  } catch (e) { /* sem armazenamento, sem problema */ }
+}
+
+function lerFiltrosSalvos() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_FILTROS);
+    return bruto ? JSON.parse(bruto) : null;
+  } catch (e) { return null; }
+}
+
+function limparFiltrosSalvos() {
+  try { localStorage.removeItem(CHAVE_FILTROS); } catch (e) { /* nada a fazer */ }
+}
+const FILTROS = {};
+const rotuloMes = function (m) { return MESES[Number(m) - 1] || String(m); };
+
+function montarListas() {
+  FILTROS.vendedor.setOpcoes(unicos("Vendedor").sort());
+  FILTROS.ano.setOpcoes(unicos("Ano").sort());
+  FILTROS.mes.setOpcoes(unicos("Mes").map(Number)
+    .sort(function (a, b) { return a - b; })
+    .map(rotuloMes));
+}
+
+/** Reaplica os filtros guardados no navegador na abertura da página. */
+function restaurarFiltros() {
+  const salvo = lerFiltrosSalvos();
+  if (!salvo) return;
+  CAMPOS_SALVOS.forEach(function (k) {
+    if (salvo[k] === undefined) return;
+    estado[k] = salvo[k];
+    if (FILTROS[k]) FILTROS[k].marcar(salvo[k]);
+  });
+  if (estado.visao) document.getElementById("fVisao").value = estado.visao;
+  document.querySelectorAll("[data-corte]").forEach(function (o) {
+    o.setAttribute("aria-pressed", String(Number(o.dataset.corte) === estado.corte));
+  });
 }
 
 function unicos(campo) {
@@ -559,27 +731,21 @@ function unicos(campo) {
   return Object.keys(v);
 }
 
-function preencher(id, valores) {
-  const sel = document.getElementById(id);
-  const atual = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
-  valores.forEach(function (v) {
-    const o = document.createElement("option");
-    o.value = o.textContent = v;
-    sel.appendChild(o);
-  });
-  sel.value = valores.indexOf(atual) >= 0 ? atual : "";
-}
-
 /* --------------------------- interação ------------------------- */
-const LIGACOES = { fVendedor: "vendedor", fMes: "mes", fAno: "ano", fVisao: "visao" };
-
-Object.keys(LIGACOES).forEach(function (id) {
-  document.getElementById(id).addEventListener("change", function (ev) {
-    estado[LIGACOES[id]] = ev.target.value;
+[["vendedor", "fVendedor"], ["mes", "fMes"], ["ano", "fAno"]].forEach(function (par) {
+  FILTROS[par[0]] = new MultiFiltro(par[1], function (v) {
+    estado[par[0]] = v;
     estado.clienteSel = "";
+    salvarFiltros();
     render();
   });
+});
+
+document.getElementById("fVisao").addEventListener("change", function (ev) {
+  estado.visao = ev.target.value;
+  estado.clienteSel = "";
+  salvarFiltros();
+  render();
 });
 
 document.querySelectorAll("[data-corte]").forEach(function (b) {
@@ -588,6 +754,7 @@ document.querySelectorAll("[data-corte]").forEach(function (b) {
     document.querySelectorAll("[data-corte]").forEach(function (o) {
       o.setAttribute("aria-pressed", String(o === b));
     });
+    salvarFiltros();
     render();
   };
 });
@@ -608,10 +775,10 @@ document.querySelector("#tabABC tbody").addEventListener("click", function (ev) 
 });
 
 document.getElementById("btnLimpar").onclick = function () {
-  ["fVendedor", "fMes", "fAno"].forEach(function (id) { document.getElementById(id).value = ""; });
+  Object.keys(FILTROS).forEach(function (k) { FILTROS[k].limpar(); estado[k] = []; });
   document.getElementById("fVisao").value = "Mês";
-  estado.vendedor = estado.mes = estado.ano = "";
   estado.visao = "Mês";
+  limparFiltrosSalvos();
   estado.ramoSel = estado.clienteSel = "";
   estado.corte = 80;
   document.querySelectorAll("[data-corte]").forEach(function (o) {
