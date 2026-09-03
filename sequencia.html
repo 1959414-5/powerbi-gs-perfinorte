@@ -110,7 +110,8 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
 .rodando{color:var(--verde);font-weight:600}
 
 .tag{font-weight:600}
-.tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR,.tag.NAO_INICIADO{color:var(--amarelo)}
+.tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR,.tag.NAO_INICIADO,
+.tag.A_PROGRAMAR{color:var(--amarelo)}
 .tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA{color:var(--verde)}
 
 .rodape{flex:0 0 auto;padding:5px 12px;color:var(--texto-fraco);font-size:11.5px;
@@ -273,7 +274,9 @@ async function carregar() {
       + "Codigo.gs novo e rode Atualizar base agora — sem elas não há como sequenciar.");
   }
 
-  estado.itens = paraObjetos(dados.I)
+  const apontados = paraObjetos(dados.I);
+
+  estado.itens = apontados
     .filter(function (i) { return ETAPAS.indexOf(i.Etapa_Fila) >= 0; })
     .map(function (i) {
       const p = estado.pedidos[String(i.Pedido_Linha)] || {};
@@ -285,11 +288,60 @@ async function carregar() {
       i.Status_Pedido_Key = p.Status_Pedido_Key || "";
       i.Cliente = i.Cliente || p.Cliente || "";
       return i;
-    });
+    })
+    .concat(filaAProgramar(apontados, paraObjetos(dados.T)));
 
   montarListas();
   restaurarFiltros();
   render();
+}
+
+/* Itens do pedido que ainda não têm nenhum apontamento: são os que
+ * esperam programação. Chegam do relatório de itens (aba Itens_Pedido),
+ * já com material e espessura vindos do cadastro de produtos. */
+function filaAProgramar(apontados, itensPedido) {
+  if (!itensPedido.length) return [];
+
+  const jaApontado = {};
+  apontados.forEach(function (i) {
+    jaApontado[String(i.Pedido_Linha) + "|" + String(i.Item_Pedido)] = 1;
+  });
+
+  const fila = [];
+  itensPedido.forEach(function (t) {
+    const ped = String(t.Pedido_Linha);
+    if (jaApontado[ped + "|" + String(t.Seq)]) return;
+    if (numero(t.Qtde_Aberta) <= 0) return;
+
+    const p = estado.pedidos[ped] || {};
+    fila.push({
+      Pedido_Linha: ped,
+      Item_Pedido: t.Seq,
+      Produto: [t.Chapa, t.Descricao].filter(Boolean).join(" — "),
+      Cliente: p.Cliente || "",
+      Material: t.Material || "SEM MATERIAL",
+      Espessura: String(t.Espessura || "").trim(),
+      Processo_Executado: "",
+      Status_Processo_Executado: "",
+      Status_Final_Item: "A PROGRAMAR",
+      Etapa_Fila: "PROGRAMAÇÃO",
+      // ainda não houve apontamento: a fila conta da emissão do pedido
+      Fila_Desde: p.Data_Emissao || t.Data_Entrega_Item || "",
+      Data_Entrega: t.Data_Entrega_Item || p.Data_Entrega || "",
+      Data_Emissao: p.Data_Emissao || "",
+      Status_Pedido_Key: p.Status_Pedido_Key || "",
+      Qtde_Aberta: numero(t.Qtde_Aberta)
+    });
+  });
+  return fila;
+}
+
+function numero(v) {
+  if (typeof v === "number") return v;
+  let t = String(v == null ? "" : v).replace(/\s/g, "");
+  if (t.indexOf(",") >= 0) t = t.replace(/\./g, "").replace(",", ".");
+  const n = parseFloat(t);
+  return isNaN(n) ? 0 : n;
 }
 
 function paraObjetos(t) {
