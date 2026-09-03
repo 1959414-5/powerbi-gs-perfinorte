@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perfinorte — Fila de Produção</title>
+<style>
+:root{
+  --fundo:#101c30; --painel:#16233b; --painel-2:#1b2b47; --linha:#26385a;
+  --texto:#e8eef8; --texto-fraco:#93a4c0; --ciano:#4fc3f7; --ciano-fraco:#2a5f85;
+  --verde:#4ade80; --vermelho:#ff6b6b; --amarelo:#ffc857; --raio:10px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;overflow:hidden}
+body{background:var(--fundo);color:var(--texto);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:13px;
+  display:flex;flex-direction:column;gap:10px;padding:12px 16px}
+
+.topo{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;flex:0 0 auto}
+.marca .empresa{font-size:14px;letter-spacing:.16em;color:var(--texto-fraco)}
+.marca h1{margin:3px 0 0;font-size:30px;font-weight:300;letter-spacing:.08em;line-height:1}
+.kpis{display:flex;gap:9px;margin-left:auto;flex-wrap:wrap}
+.kpi{background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
+  padding:7px 15px;min-width:112px;cursor:pointer}
+.kpi:hover{border-color:var(--ciano)}
+.kpi[aria-pressed=true]{border-color:var(--ciano);background:var(--painel-2)}
+.kpi .rotulo{color:var(--texto-fraco);font-size:11px;white-space:nowrap}
+.kpi .valor{font-size:23px;font-weight:600;text-align:right;line-height:1.15;margin-top:1px}
+.kpi.programar .valor{color:var(--texto-fraco)}
+.kpi.cortar .valor{color:var(--amarelo)}
+.kpi.corte .valor{color:var(--ciano)}
+.kpi.dobrar .valor{color:var(--amarelo)}
+.kpi.dobra .valor{color:var(--ciano)}
+.kpi.total .valor{color:var(--texto)}
+
+.filtros{flex:0 0 auto;background:var(--painel);border:1px solid var(--linha);
+  border-radius:var(--raio);padding:9px 12px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.campo{display:flex;flex-direction:column;gap:3px}
+.campo label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--texto-fraco)}
+input,select{background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 8px;font:inherit;height:29px;min-width:135px}
+input:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+.btn{background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 13px;font:inherit;height:29px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--ciano);color:var(--texto)}
+.btn[aria-pressed=true]{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
+.btn.primario{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
+.btn.primario:hover{filter:brightness(1.1);color:#08172b}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn:focus-visible{outline:2px solid var(--ciano);outline-offset:2px}
+
+.painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#painelFila{flex:1 1 52%}
+#painelItens{flex:1 1 48%}
+.cabeca{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:0 0 auto;
+  padding:7px 12px;background:var(--painel-2);border-bottom:1px solid var(--linha)}
+.cabeca h2{margin:0;font-size:13.5px;font-weight:500;color:var(--texto-fraco)}
+.controles{display:flex;gap:7px;align-items:center;margin-left:auto;flex-wrap:wrap}
+
+.rolagem{flex:1 1 auto;min-height:0;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
+thead th{position:sticky;top:0;z-index:2;background:var(--painel-2);color:var(--ciano);
+  text-align:left;font-weight:600;padding:7px 9px;border-bottom:1px solid var(--linha);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+thead th:hover{color:#fff}
+.puxador{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
+.puxador:hover{background:var(--ciano)}
+tbody td{padding:5px 9px;border-bottom:1px solid rgba(38,56,90,.5);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:rgba(79,195,247,.07)}
+tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
+tfoot td{position:sticky;bottom:0;background:var(--painel-2);font-weight:600;
+  padding:6px 9px;border-top:1px solid var(--linha)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.zero{color:#3b4d6e}
+.cel{cursor:pointer;border-radius:3px}
+.cel:hover{background:rgba(79,195,247,.16)}
+.cel[aria-selected=true]{background:var(--ciano);color:#08172b;font-weight:700}
+td.atraso{color:var(--vermelho);font-weight:600}
+
+.tag{font-weight:600}
+.tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR,.tag.NAO_INICIADO{color:var(--amarelo)}
+.tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA{color:var(--ciano)}
+.tag.FINALIZADO{color:var(--verde)}
+
+.rodape{flex:0 0 auto;padding:5px 12px;color:var(--texto-fraco);font-size:11.5px;
+  border-top:1px solid var(--linha)}
+.vazio{padding:22px;text-align:center;color:var(--texto-fraco);white-space:normal}
+#aviso{flex:0 0 auto;background:#3a2a12;border:1px solid #6b4d1e;color:#ffd08a;
+  border-radius:var(--raio);padding:8px 13px;font-size:12.5px;display:none}
+</style>
+</head>
+<body>
+
+<div id="aviso"></div>
+
+<div class="topo">
+  <div class="marca">
+    <div class="empresa">PERFINORTE</div>
+    <h1>Fila de produção</h1>
+  </div>
+  <div class="kpis" id="kpis">
+    <div class="kpi programar" data-etapa="NÃO INICIADO" aria-pressed="false">
+      <div class="rotulo">A programar</div><div class="valor" id="k0">–</div></div>
+    <div class="kpi cortar" data-etapa="FALTA CORTAR" aria-pressed="false">
+      <div class="rotulo">A cortar</div><div class="valor" id="k1">–</div></div>
+    <div class="kpi corte" data-etapa="EM CORTE" aria-pressed="false">
+      <div class="rotulo">Em corte</div><div class="valor" id="k2">–</div></div>
+    <div class="kpi dobrar" data-etapa="FALTA DOBRAR" aria-pressed="false">
+      <div class="rotulo">A dobrar</div><div class="valor" id="k3">–</div></div>
+    <div class="kpi dobra" data-etapa="EM DOBRA" aria-pressed="false">
+      <div class="rotulo">Em dobra</div><div class="valor" id="k4">–</div></div>
+    <div class="kpi dobrar" data-etapa="FALTA CALANDRAR" aria-pressed="false">
+      <div class="rotulo">A calandrar</div><div class="valor" id="k5">–</div></div>
+    <div class="kpi dobra" data-etapa="EM CALANDRA" aria-pressed="false">
+      <div class="rotulo">Em calandra</div><div class="valor" id="k6">–</div></div>
+    <div class="kpi total" data-etapa="" aria-pressed="true">
+      <div class="rotulo">Fila total</div><div class="valor" id="kt">–</div></div>
+  </div>
+</div>
+
+<div class="filtros">
+  <div class="campo"><label for="fMaterial">Material</label><select id="fMaterial"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="fEspessura">Espessura</label><select id="fEspessura"><option value="">Todas</option></select></div>
+  <div class="campo"><label for="fCliente">Cliente</label><select id="fCliente"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="fProcesso">Processo atual</label><select id="fProcesso"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="fEntrega">Entrega até</label><input type="date" id="fEntrega" style="color-scheme:dark"></div>
+  <div class="campo"><label for="fBusca">Pedido, cliente ou item</label><input type="search" id="fBusca" placeholder="Buscar" style="min-width:190px"></div>
+  <div class="campo"><label>&nbsp;</label><button class="btn" id="btnAtrasados" aria-pressed="false">Só de pedidos atrasados</button></div>
+  <div class="campo"><label>&nbsp;</label><button class="btn" id="btnLimpar">Limpar filtros</button></div>
+  <div class="campo"><label>&nbsp;</label><button class="btn primario" id="btnMostrar">Mostrar</button></div>
+</div>
+
+<section class="painel" id="painelFila">
+  <div class="cabeca">
+    <h2>Fila por material e espessura</h2>
+    <div class="controles">
+      <span id="selecionado" style="color:var(--ciano)"></span>
+      <button class="btn" data-agrupar="ambos" aria-pressed="true">Material + espessura</button>
+      <button class="btn" data-agrupar="material" aria-pressed="false">Só material</button>
+      <button class="btn" data-agrupar="espessura" aria-pressed="false">Só espessura</button>
+      <button class="btn" id="exportaFila">Baixar CSV</button>
+    </div>
+  </div>
+  <div class="rolagem">
+    <table id="tabFila">
+      <colgroup></colgroup>
+      <thead><tr>
+        <th data-col="material" data-larg="180">Material</th>
+        <th data-col="espessura" data-larg="100" class="num">Espessura</th>
+        <th data-col="NÃO INICIADO" data-larg="105" class="num">A programar</th>
+        <th data-col="FALTA CORTAR" data-larg="95" class="num">A cortar</th>
+        <th data-col="EM CORTE" data-larg="95" class="num">Em corte</th>
+        <th data-col="FALTA DOBRAR" data-larg="95" class="num">A dobrar</th>
+        <th data-col="EM DOBRA" data-larg="95" class="num">Em dobra</th>
+        <th data-col="FALTA CALANDRAR" data-larg="105" class="num">A calandrar</th>
+        <th data-col="EM CALANDRA" data-larg="105" class="num">Em calandra</th>
+        <th data-col="total" data-larg="80" class="num">Total</th>
+        <th data-col="atrasados" data-larg="100" class="num">Atrasados</th>
+      </tr></thead>
+      <tbody></tbody>
+      <tfoot><tr id="totais"></tr></tfoot>
+    </table>
+  </div>
+  <div class="rodape"><span id="rodapeFila"></span></div>
+</section>
+
+<section class="painel" id="painelItens">
+  <div class="cabeca">
+    <h2>Itens da fila</h2>
+    <div class="controles"><button class="btn" id="exportaItens">Baixar CSV</button></div>
+  </div>
+  <div class="rolagem">
+    <table id="tabItens">
+      <colgroup></colgroup>
+      <thead><tr>
+        <th data-col="Pedido_Linha" data-larg="85">Pedido</th>
+        <th data-col="Item_Pedido" data-larg="60" class="num">Item</th>
+        <th data-col="Cliente" data-larg="210">Cliente</th>
+        <th data-col="Produto" data-larg="360">Descrição</th>
+        <th data-col="Material" data-larg="140">Material</th>
+        <th data-col="Espessura" data-larg="90" class="num">Espessura</th>
+        <th data-col="Status_Final_Item" data-larg="135">Etapa</th>
+        <th data-col="Data_Entrega" data-larg="110">Entrega</th>
+        <th data-col="Dias_Vencido" data-larg="105" class="num">Dias vencidos</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="rodape"><span id="rodapeItens"></span></div>
+</section>
+
+<script src="dados_demo.js" onerror="window.DADOS_DEMO=null"></script>
+<script>
+/* Cole a URL /exec do app da web publicado pelo Apps Script. */
+const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwEehiiPDWe3rWJ2XffRXWE7oqgSMp6HodPsI0kzIEb-Z_XDA/exec";
+
+/* As etapas da fila, na ordem em que a peça caminha pela fábrica. */
+const ETAPAS = ["NÃO INICIADO", "FALTA CORTAR", "EM CORTE",
+  "FALTA DOBRAR", "EM DOBRA", "FALTA CALANDRAR", "EM CALANDRA"];
+
+const LIMITE = 3000;
+
+const estado = {
+  itens: [], pedidos: {}, hoje: "",
+  material: "", espessura: "", cliente: "", processo: "", entrega: "", busca: "",
+  soAtrasados: false, etapa: "", agrupar: "ambos", linhaSel: "", celulaSel: "",
+  ordemFila: { col: "total", desc: true },
+  ordemItens: { col: "Dias_Vencido", desc: true }
+};
+
+/* ------------------------ carregamento ------------------------ */
+async function carregar() {
+  const b = document.getElementById("btnMostrar");
+  b.disabled = true; b.textContent = "Atualizando…";
+  esconderAviso();
+
+  let dados = null;
+  if (API_URL) {
+    try {
+      const sep = API_URL.indexOf("?") < 0 ? "?" : "&";
+      const r = await fetch(API_URL + sep + "t=" + Date.now(), { redirect: "follow" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      dados = await r.json();
+    } catch (e) {
+      avisar("Não consegui ler a planilha (" + e.message + "). A URL precisa terminar em /exec"
+        + " e a implantação precisa estar como \"Qualquer pessoa\". Mostrando os dados de exemplo.");
+    }
+  } else {
+    avisar("API_URL está vazio em fila-producao.html — usando os dados de exemplo embutidos.");
+  }
+
+  b.disabled = false; b.textContent = "Mostrar";
+  if (!dados) dados = window.DADOS_DEMO;
+  if (!dados) { avisar("Nenhuma fonte de dados disponível."); return; }
+
+  estado.hoje = dados.hoje || new Date().toISOString().slice(0, 10);
+
+  estado.pedidos = {};
+  paraObjetos(dados.P).forEach(function (p) { estado.pedidos[String(p.Pedido_Linha)] = p; });
+
+  // só o que ainda não terminou entra na fila
+  estado.itens = paraObjetos(dados.I)
+    .filter(function (i) { return ETAPAS.indexOf(i.Status_Final_Item) >= 0; })
+    .map(function (i) {
+      const p = estado.pedidos[String(i.Pedido_Linha)] || {};
+      i.Material = i.Material || "SEM MATERIAL";
+      i.Espessura = String(i.Espessura || "").trim();
+      i.Data_Entrega = p.Data_Entrega || "";
+      i.Status_Pedido_Key = p.Status_Pedido_Key || "";
+      i.Dias_Vencido = Number(p.Dias_Vencido) || 0;
+      return i;
+    });
+
+  if (!dados.I || dados.I.cols.indexOf("Material") < 0) {
+    avisar("A aba Itens_Limpos ainda não tem a coluna Material. Cole o Codigo.gs novo e rode "
+      + "Atualizar base agora — sem ela a fila não separa por material.");
+  }
+
+  montarListas();
+  render();
+}
+
+function paraObjetos(t) {
+  if (!t || !t.rows) return [];
+  return t.rows.map(function (linha) {
+    const o = {};
+    t.cols.forEach(function (c, i) { o[c] = linha[i]; });
+    return o;
+  });
+}
+function avisar(m) { const e = document.getElementById("aviso"); e.textContent = m; e.style.display = "block"; }
+function esconderAviso() { document.getElementById("aviso").style.display = "none"; }
+
+/* --------------------------- filtros --------------------------- */
+function filtrados() {
+  const busca = estado.busca.toLowerCase();
+  return estado.itens.filter(function (i) {
+    if (estado.material && i.Material !== estado.material) return false;
+    if (estado.espessura && i.Espessura !== estado.espessura) return false;
+    if (estado.cliente && i.Cliente !== estado.cliente) return false;
+    if (estado.processo && i.Processo_Executado !== estado.processo) return false;
+    if (estado.etapa && i.Status_Final_Item !== estado.etapa) return false;
+    if (estado.soAtrasados && i.Status_Pedido_Key !== "ATRASADO") return false;
+    if (estado.entrega && (!i.Data_Entrega || i.Data_Entrega > estado.entrega)) return false;
+    if (busca && (String(i.Pedido_Linha) + " " + i.Cliente + " " + i.Produto)
+      .toLowerCase().indexOf(busca) < 0) return false;
+    return true;
+  });
+}
+
+const chaveLinha = function (i) {
+  if (estado.agrupar === "material") return i.Material + "\u0001";
+  if (estado.agrupar === "espessura") return "\u0001" + (i.Espessura || "—");
+  return i.Material + "\u0001" + (i.Espessura || "—");
+};
+
+/* Agrupa em linhas de material/espessura com uma contagem por etapa. */
+function montarFila(itens) {
+  const mapa = {};
+  itens.forEach(function (i) {
+    const k = chaveLinha(i);
+    let l = mapa[k];
+    if (!l) {
+      const partes = k.split("\u0001");
+      l = mapa[k] = { chave: k, material: partes[0] || "—", espessura: partes[1] || "—",
+        total: 0, atrasados: 0 };
+      ETAPAS.forEach(function (e) { l[e] = 0; });
+    }
+    l[i.Status_Final_Item]++;
+    l.total++;
+    if (i.Status_Pedido_Key === "ATRASADO") l.atrasados++;
+  });
+  return Object.keys(mapa).map(function (k) { return mapa[k]; });
+}
+
+/* --------------------------- render ---------------------------- */
+function render() {
+  const itens = filtrados();
+  const fila = ordenar(montarFila(itens), estado.ordemFila);
+
+  // indicadores: contam sem o filtro de etapa, para os cartões nunca zerarem entre si
+  const semEtapa = (function () {
+    const guardado = estado.etapa;
+    estado.etapa = "";
+    const r = filtrados();
+    estado.etapa = guardado;
+    return r;
+  })();
+
+  const contagem = {};
+  ETAPAS.forEach(function (e) { contagem[e] = 0; });
+  semEtapa.forEach(function (i) { contagem[i.Status_Final_Item]++; });
+  ETAPAS.forEach(function (e, n) { texto("k" + n, contagem[e] || "–"); });
+  texto("kt", semEtapa.length || "–");
+
+  desenharFila(fila);
+  desenharTotais(fila);
+
+  const detalhe = itens.filter(function (i) {
+    if (estado.linhaSel && chaveLinha(i) !== estado.linhaSel) return false;
+    if (estado.celulaSel && i.Status_Final_Item !== estado.celulaSel) return false;
+    return true;
+  });
+  desenharItens(ordenar(detalhe.slice(), estado.ordemItens));
+
+  texto("rodapeFila", fila.length + " combinações · " + itens.length + " itens na fila");
+  texto("rodapeItens", detalhe.length + " itens"
+    + (detalhe.length > LIMITE ? " — mostrando os " + LIMITE + " primeiros" : ""));
+
+  const partes = estado.linhaSel ? estado.linhaSel.split("\u0001") : null;
+  texto("selecionado", partes
+    ? [partes[0], partes[1]].filter(Boolean).join(" · ")
+      + (estado.celulaSel ? " · " + estado.celulaSel : "") + " — clique de novo para soltar"
+    : "");
+}
+
+function desenharFila(fila) {
+  const corpo = document.querySelector("#tabFila tbody");
+  if (!fila.length) { corpo.innerHTML = vazio(11, "Nada na fila com esses filtros."); return; }
+
+  const partes = [];
+  fila.forEach(function (l) {
+    const sel = l.chave === estado.linhaSel;
+    const celulas = ETAPAS.map(function (e) {
+      const v = l[e];
+      const marcada = sel && estado.celulaSel === e;
+      return '<td class="num cel' + (v ? "" : " zero") + '" data-etapa="' + e + '"'
+        + (marcada ? ' aria-selected="true"' : "") + ">" + (v || "·") + "</td>";
+    }).join("");
+
+    partes.push('<tr data-chave="' + esc(l.chave) + '"' + (sel ? ' aria-selected="true"' : "") + ">"
+      + "<td>" + esc(l.material) + "</td>"
+      + '<td class="num">' + esc(l.espessura) + "</td>"
+      + celulas
+      + '<td class="num"><b>' + l.total + "</b></td>"
+      + '<td class="num' + (l.atrasados ? " atraso" : " zero") + '">' + (l.atrasados || "·") + "</td></tr>");
+  });
+  corpo.innerHTML = partes.join("");
+}
+
+function desenharTotais(fila) {
+  const t = { total: 0, atrasados: 0 };
+  ETAPAS.forEach(function (e) { t[e] = 0; });
+  fila.forEach(function (l) {
+    ETAPAS.forEach(function (e) { t[e] += l[e]; });
+    t.total += l.total; t.atrasados += l.atrasados;
+  });
+  document.getElementById("totais").innerHTML =
+    '<td colspan="2">Total</td>'
+    + ETAPAS.map(function (e) { return '<td class="num">' + (t[e] || "·") + "</td>"; }).join("")
+    + '<td class="num">' + t.total + "</td>"
+    + '<td class="num' + (t.atrasados ? " atraso" : "") + '">' + (t.atrasados || "·") + "</td>";
+}
+
+function desenharItens(lista) {
+  const corpo = document.querySelector("#tabItens tbody");
+  if (!lista.length) { corpo.innerHTML = vazio(9, "Selecione uma linha da fila ou ajuste os filtros."); return; }
+
+  const partes = [];
+  for (let n = 0; n < lista.length && n < LIMITE; n++) {
+    const i = lista[n];
+    partes.push("<tr>"
+      + "<td>" + esc(i.Pedido_Linha) + "</td>"
+      + '<td class="num">' + esc(i.Item_Pedido) + "</td>"
+      + '<td title="' + esc(i.Cliente) + '">' + esc(i.Cliente) + "</td>"
+      + '<td title="' + esc(i.Produto) + '">' + esc(i.Produto) + "</td>"
+      + "<td>" + esc(i.Material) + "</td>"
+      + '<td class="num">' + esc(i.Espessura || "—") + "</td>"
+      + '<td class="tag ' + chave(i.Status_Final_Item) + '">' + esc(i.Status_Final_Item) + "</td>"
+      + "<td>" + br(i.Data_Entrega) + "</td>"
+      + '<td class="num' + (i.Status_Pedido_Key === "ATRASADO" ? " atraso" : "") + '">'
+      + (i.Dias_Vencido || "·") + "</td></tr>");
+  }
+  corpo.innerHTML = partes.join("");
+}
+
+function ordenar(lista, ordem) {
+  const c = ordem.col;
+  return lista.sort(function (a, b) {
+    let x = a[c], y = b[c];
+    const nx = parseFloat(String(x).replace(",", ".")), ny = parseFloat(String(y).replace(",", "."));
+    if (!isNaN(nx) && !isNaN(ny)) { x = nx; y = ny; }
+    if (x === y) return 0;
+    return (x > y ? 1 : -1) * (ordem.desc ? -1 : 1);
+  });
+}
+
+const vazio = function (n, m) { return '<tr><td class="vazio" colspan="' + n + '">' + m + "</td></tr>"; };
+const chave = function (s) { return String(s || "").replace(/[ÃÁÀÂ]/g, "A").replace(/\s+/g, "_"); };
+const esc = function (s) {
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+};
+const br = function (d) {
+  d = String(d || "");
+  return /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "—";
+};
+const texto = function (id, v) { document.getElementById(id).textContent = v; };
+
+/* ------------------------ listas dos filtros ------------------- */
+function montarListas() {
+  preencher("fMaterial", unicos("Material").sort());
+  preencher("fCliente", unicos("Cliente").sort());
+  preencher("fProcesso", unicos("Processo_Executado").sort());
+  preencher("fEspessura", unicos("Espessura").sort(function (a, b) {
+    return parseFloat(a.replace(",", ".")) - parseFloat(b.replace(",", "."));
+  }));
+}
+function unicos(campo) {
+  const v = {};
+  estado.itens.forEach(function (i) { if (i[campo]) v[i[campo]] = 1; });
+  return Object.keys(v);
+}
+function preencher(id, valores) {
+  const sel = document.getElementById(id);
+  const atual = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  valores.forEach(function (v) {
+    const o = document.createElement("option");
+    o.value = o.textContent = v;
+    sel.appendChild(o);
+  });
+  sel.value = valores.indexOf(atual) >= 0 ? atual : "";
+}
+
+/* --------------------------- interação ------------------------- */
+const LIGACOES = { fMaterial: "material", fEspessura: "espessura", fCliente: "cliente",
+  fProcesso: "processo", fEntrega: "entrega", fBusca: "busca" };
+
+Object.keys(LIGACOES).forEach(function (id) {
+  const el = document.getElementById(id);
+  el.addEventListener(el.tagName === "SELECT" || el.type === "date" ? "change" : "input", function () {
+    estado[LIGACOES[id]] = el.value;
+    estado.linhaSel = estado.celulaSel = "";
+    render();
+  });
+});
+
+document.getElementById("kpis").addEventListener("click", function (ev) {
+  const el = ev.target.closest("[data-etapa]");
+  if (!el) return;
+  estado.etapa = estado.etapa === el.dataset.etapa ? "" : el.dataset.etapa;
+  estado.linhaSel = estado.celulaSel = "";
+  document.querySelectorAll("#kpis .kpi").forEach(function (k) {
+    k.setAttribute("aria-pressed", String(k.dataset.etapa === estado.etapa));
+  });
+  render();
+});
+
+document.querySelectorAll("[data-agrupar]").forEach(function (b) {
+  b.onclick = function () {
+    estado.agrupar = b.dataset.agrupar;
+    estado.linhaSel = estado.celulaSel = "";
+    document.querySelectorAll("[data-agrupar]").forEach(function (o) {
+      o.setAttribute("aria-pressed", String(o === b));
+    });
+    render();
+  };
+});
+
+document.getElementById("btnAtrasados").onclick = function () {
+  estado.soAtrasados = !estado.soAtrasados;
+  this.setAttribute("aria-pressed", String(estado.soAtrasados));
+  render();
+};
+
+// clique na linha seleciona o grupo; clique numa célula de etapa refina
+document.querySelector("#tabFila tbody").addEventListener("click", function (ev) {
+  const tr = ev.target.closest("tr[data-chave]");
+  if (!tr) return;
+  const td = ev.target.closest("td[data-etapa]");
+  const k = tr.dataset.chave;
+
+  if (td && Number(td.textContent) > 0) {
+    if (estado.linhaSel === k && estado.celulaSel === td.dataset.etapa) {
+      estado.linhaSel = estado.celulaSel = "";
+    } else { estado.linhaSel = k; estado.celulaSel = td.dataset.etapa; }
+  } else {
+    if (estado.linhaSel === k && !estado.celulaSel) estado.linhaSel = "";
+    else { estado.linhaSel = k; estado.celulaSel = ""; }
+  }
+  render();
+});
+
+document.getElementById("btnLimpar").onclick = function () {
+  Object.keys(LIGACOES).forEach(function (id) {
+    document.getElementById(id).value = "";
+    estado[LIGACOES[id]] = "";
+  });
+  estado.etapa = ""; estado.soAtrasados = false;
+  estado.linhaSel = estado.celulaSel = "";
+  document.getElementById("btnAtrasados").setAttribute("aria-pressed", "false");
+  document.querySelectorAll("#kpis .kpi").forEach(function (k) {
+    k.setAttribute("aria-pressed", String(k.dataset.etapa === ""));
+  });
+  render();
+};
+
+document.getElementById("btnMostrar").onclick = carregar;
+
+function prepararTabela(id, ordem) {
+  const tabela = document.getElementById(id);
+  const grupo = tabela.querySelector("colgroup");
+  tabela.querySelectorAll("thead th").forEach(function (th) {
+    const col = document.createElement("col");
+    col.style.width = th.dataset.larg + "px";
+    grupo.appendChild(col);
+
+    th.style.position = "sticky";
+    const puxador = document.createElement("div");
+    puxador.className = "puxador";
+    th.appendChild(puxador);
+
+    th.addEventListener("click", function (ev) {
+      if (ev.target === puxador) return;
+      const c = th.dataset.col;
+      if (ordem.col === c) ordem.desc = !ordem.desc;
+      else { ordem.col = c; ordem.desc = th.classList.contains("num"); }
+      render();
+    });
+
+    puxador.addEventListener("mousedown", function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      const x0 = ev.clientX, l0 = th.getBoundingClientRect().width;
+      const mover = function (e) { col.style.width = Math.max(50, l0 + e.clientX - x0) + "px"; };
+      const soltar = function () {
+        document.removeEventListener("mousemove", mover);
+        document.removeEventListener("mouseup", soltar);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.addEventListener("mousemove", mover);
+      document.addEventListener("mouseup", soltar);
+    });
+  });
+}
+prepararTabela("tabFila", estado.ordemFila);
+prepararTabela("tabItens", estado.ordemItens);
+
+document.getElementById("exportaFila").onclick = function () {
+  baixarCSV("fila.csv", ordenar(montarFila(filtrados()), estado.ordemFila));
+};
+document.getElementById("exportaItens").onclick = function () {
+  const d = filtrados().filter(function (i) {
+    if (estado.linhaSel && chaveLinha(i) !== estado.linhaSel) return false;
+    if (estado.celulaSel && i.Status_Final_Item !== estado.celulaSel) return false;
+    return true;
+  });
+  baixarCSV("itens-fila.csv", ordenar(d, estado.ordemItens));
+};
+
+function baixarCSV(nome, lista) {
+  if (!lista.length) return;
+  const cols = Object.keys(lista[0]).filter(function (c) { return c !== "chave"; });
+  const linhas = [cols.join(";")].concat(lista.map(function (o) {
+    return cols.map(function (c) {
+      return '"' + String(o[c] === undefined ? "" : o[c]).replace(/"/g, '""') + '"';
+    }).join(";");
+  }));
+  const url = URL.createObjectURL(new Blob(["\uFEFF" + linhas.join("\n")], { type: "text/csv" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = nome; a.click();
+  URL.revokeObjectURL(url);
+}
+
+carregar();
+</script>
+</body>
+</html>
