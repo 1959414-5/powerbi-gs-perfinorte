@@ -312,6 +312,11 @@ async function carregar() {
     const k = String(i.Pedido_Linha) + "|" + String(i.Item_Pedido);
     const c = estado.concluidos[k];
     if (c) i.Local = c.Local || "";
+
+    // item com local de armazenagem já saiu da fábrica e está guardado:
+    // FINALIZADO vira CONCLUÍDO. Sem local, continua FINALIZADO.
+    if (i.Local && i.Status_Final_Item === "FINALIZADO") i.Status_Final_Item = "CONCLUÍDO";
+
     i.Situacao = estado.situacaoPorItem[k] || "";
     return i;
   });
