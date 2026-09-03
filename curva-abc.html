@@ -48,25 +48,24 @@ select:focus{outline:2px solid var(--ciano);outline-offset:1px}
   display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .painel > h2{margin:0;padding:8px 14px;font-size:13.5px;font-weight:500;color:var(--texto-fraco);
   background:var(--painel-2);border-bottom:1px solid var(--linha);flex:0 0 auto}
-#painelABC{flex:1 1 64%}
-#painelPeriodo{flex:1 1 36%}
+#painelABC{flex:1 1 74%}
+#painelPeriodo{flex:0 0 210px}
 
 /* ---------- topo do painel ABC ---------- */
-.resumo{flex:0 0 auto;padding:11px 14px;display:flex;gap:26px;align-items:center;flex-wrap:wrap}
-.cortes{display:flex;flex-direction:column;gap:6px}
+.resumo{flex:0 0 auto;padding:8px 14px;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.cortes{display:flex;flex-direction:column;gap:5px}
 .cortes .rotulo{font-size:11px;color:var(--texto-fraco)}
 .cortes .botoes{display:flex;gap:5px}
 
-.waffles{display:flex;gap:26px;margin-left:auto;align-items:center}
-.waffle{display:flex;gap:11px;align-items:center}
-.waffle .grade-pontos{display:grid;grid-template-columns:repeat(10,7px);gap:3px}
-.ponto{width:7px;height:7px;border-radius:50%;background:#243busa;background:#22recolor}
-.ponto{background:#223a5c}
+.waffles{display:flex;gap:22px;margin-left:auto;align-items:center}
+.waffle{display:flex;gap:10px;align-items:center}
+.waffle .grade-pontos{display:grid;grid-template-columns:repeat(10,6px);gap:2px}
+.ponto{width:6px;height:6px;border-radius:50%;background:#223a5c}
 .ponto.cheio{background:var(--ciano)}
-.waffle .numero{font-size:34px;font-weight:300;line-height:1;color:var(--ciano)}
-.waffle .legenda{font-size:10px;letter-spacing:.08em;color:var(--texto-fraco);margin-top:3px}
+.waffle .numero{font-size:29px;font-weight:300;line-height:1;color:var(--ciano)}
+.waffle .legenda{font-size:9.5px;letter-spacing:.08em;color:var(--texto-fraco);margin-top:2px}
 
-#frase{padding:0 14px 9px;font-size:13.5px;flex:0 0 auto}
+#frase{padding:0 14px 7px;font-size:13px;flex:0 0 auto}
 #frase b{color:var(--ciano);font-weight:600}
 
 /* ---------- tabela ---------- */
@@ -103,14 +102,24 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
 
 /* ---------- gráficos ---------- */
 .corpo{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 14px}
-.periodos{display:flex;flex-direction:column;gap:9px;height:100%;justify-content:center}
-.periodo{display:grid;grid-template-columns:78px 1fr 110px;gap:9px;align-items:center}
-.periodo .rot{font-size:11.5px;color:var(--texto-fraco)}
-.trilho{position:relative;height:22px;background:rgba(38,56,90,.45);border-radius:4px;overflow:visible}
-.preenche{height:100%;background:var(--ciano-fraco);border-radius:4px}
-.preenche.acima{background:var(--ciano)}
-.media-linha{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--amarelo)}
-.periodo .val{font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.colunas{display:flex;flex-direction:column;height:100%;min-height:120px}
+.plot{position:relative;flex:1 1 auto;min-height:0;display:flex;align-items:flex-end;gap:10px;padding-top:16px}
+.col{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;height:100%;min-width:0}
+.col .v{font-size:10.5px;text-align:center;color:var(--texto-fraco);margin-bottom:3px;white-space:nowrap}
+.col .bar{background:var(--ciano-fraco);border-radius:3px 3px 0 0;min-height:2px;transition:height .15s}
+.col.acima .bar{background:var(--ciano)}
+.col:hover .bar{filter:brightness(1.25)}
+.media-h{
+  position:absolute;left:0;right:0;height:0;border-top:2px dashed var(--amarelo);
+  pointer-events:none;z-index:1;
+}
+.media-h span{
+  position:absolute;right:0;top:-15px;font-size:10px;color:var(--amarelo);
+  background:var(--painel);padding:0 4px;border-radius:3px;
+}
+.rotulos{display:flex;gap:10px;flex:0 0 auto;padding-top:5px;border-top:1px solid var(--linha);margin-top:2px}
+.rotulos span{flex:1 1 0;text-align:center;font-size:10.5px;color:var(--texto-fraco);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .legendas{display:flex;gap:16px;font-size:11px;color:var(--texto-fraco);padding:0 14px 8px;flex:0 0 auto}
 .bolinha{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
@@ -207,7 +216,7 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
         <span><i class="bolinha" style="background:var(--ciano)"></i>Faturamento do período</span>
         <span><i class="bolinha" style="background:var(--amarelo)"></i>Média do período</span>
       </div>
-      <div class="corpo"><div class="periodos" id="graficoPeriodo"></div></div>
+      <div class="corpo" style="overflow:hidden"><div class="colunas" id="graficoPeriodo"></div></div>
     </section>
 
   </div>
@@ -269,6 +278,7 @@ function paraObjetos(t) {
     t.cols.forEach(function (c, i) { o[c] = linha[i]; });
     o.Valor = numero(o.Valor);
     o.Ano = String(o.Ano); o.Mes = String(Number(o.Mes));
+    o.Ramo = String(o.Ramo || "").replace(/\s+/g, " ").replace(/\s*\/\s*/g, "/").trim().toUpperCase();
     return o;
   });
 }
@@ -461,19 +471,25 @@ function desenharPeriodos() {
 
   const valores = chaves.map(function (k) { return soma[k]; });
   const media = valores.reduce(function (a, b) { return a + b; }, 0) / valores.length;
-  const max = Math.max.apply(null, valores.concat([media])) * 1.06;
+  const max = Math.max.apply(null, valores.concat([media])) * 1.12;
 
-  alvo.innerHTML = chaves.map(function (k) {
+  const colunas = chaves.map(function (k) {
     const v = soma[k];
-    const rotulo = porAno ? k : MESES[Number(k.slice(5)) - 1] + "/" + k.slice(0, 4);
-    return '<div class="periodo">'
-      + '<span class="rot">' + rotulo + "</span>"
-      + '<div class="trilho">'
-      + '<div class="preenche' + (v >= media ? " acima" : "") + '" style="width:' + (v / max * 100).toFixed(1) + '%"></div>'
-      + '<div class="media-linha" style="left:' + (media / max * 100).toFixed(1) + '%" title="Média ' + moeda(media) + '"></div>'
-      + "</div>"
-      + '<span class="val">' + moeda(v) + "</span></div>";
+    return '<div class="col' + (v >= media ? " acima" : "") + '" title="' + moeda(v) + '">'
+      + '<span class="v">' + milhoes(v) + "</span>"
+      + '<div class="bar" style="height:' + (v / max * 100).toFixed(1) + '%"></div></div>';
   }).join("");
+
+  const rotulos = chaves.map(function (k) {
+    return "<span>" + (porAno ? k : MESES[Number(k.slice(5)) - 1] + "/" + k.slice(0, 4)) + "</span>";
+  }).join("");
+
+  alvo.innerHTML =
+    '<div class="plot">'
+    + '<div class="media-h" style="bottom:' + (media / max * 100).toFixed(1) + '%">'
+    + "<span>média " + milhoes(media) + "</span></div>"
+    + colunas + "</div>"
+    + '<div class="rotulos">' + rotulos + "</div>";
 }
 
 /* ---- faturamento por ramo (clicável, vira filtro) ---- */
