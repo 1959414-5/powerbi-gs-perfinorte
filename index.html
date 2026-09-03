@@ -303,7 +303,8 @@ async function carregar() {
   });
   estado.pedidos.forEach(function (p) {
     const k = String(p.Pedido_Linha);
-    p.Qtd_Itens_Total = Math.max(Number(p.Qtd_Itens) || 0, totalReal[k] || 0);
+    const doRelatorio = Number(p.Qtd_Itens_Pedido) || 0;   // vem da aba Itens_Pedido
+    p.Qtd_Itens_Total = doRelatorio || totalReal[k] || Number(p.Qtd_Itens) || 0;
   });
   estado.hoje = dados.hoje || new Date().toISOString().slice(0, 10);
 
@@ -393,6 +394,8 @@ function pedidosFiltrados(itensRestritos) {
   }
 
   return estado.pedidos.filter(function (p) {
+    // pedido selecionado (por clique em qualquer das duas tabelas) manda em tudo
+    if (estado.pedidoSel && String(p.Pedido_Linha) !== estado.pedidoSel) return false;
     if (estado.statusPedido && p.Status_Pedido_Key !== estado.statusPedido) return false;
     if (estado.cliente.length && estado.cliente.indexOf(p.Cliente) < 0) return false;
     if (estado.de && (!p.Data_Emissao || p.Data_Emissao < estado.de)) return false;
@@ -448,10 +451,8 @@ function render() {
   const peds = pedidosFiltrados(restritos);
   const itens = itensVisiveis(restritos, peds);
 
-  // os indicadores leem o pedido selecionado quando há um
-  const base = estado.pedidoSel
-    ? peds.filter(function (p) { return String(p.Pedido_Linha) === estado.pedidoSel; })
-    : peds;
+  // pedidosFiltrados já respeita o pedido selecionado
+  const base = peds;
 
   const atrasados = base.filter(function (p) { return p.Status_Pedido_Key === "ATRASADO"; });
   const noPrazo = base.filter(function (p) { return p.Status_Pedido_Key === "NO_PRAZO"; }).length;
