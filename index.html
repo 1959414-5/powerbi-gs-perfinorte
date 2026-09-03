@@ -137,7 +137,8 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
 .tag.PRONTO,.tag.FINALIZADO,.tag.DOBRADO,.tag.CORTADO,.tag.PROGRAMADO,.tag.CALANDRADO{color:var(--verde)}
 .tag.NO_PRAZO,.tag.SEM_DATA{color:var(--texto-fraco)}
 .tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR,
-.tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA,.tag.NAO_INICIADO{color:var(--amarelo)}
+.tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA,.tag.NAO_INICIADO,
+.tag.A_PROGRAMAR{color:var(--amarelo)}
 
 .rodape{flex:0 0 auto;padding:5px 12px;color:var(--texto-fraco);font-size:11.5px;border-top:1px solid var(--linha)}
 .vazio{padding:22px;text-align:center;color:var(--texto-fraco);white-space:normal}
@@ -288,7 +289,22 @@ async function carregar() {
   if (!dados) { avisar("Nenhuma fonte de dados disponível."); return; }
 
   estado.pedidos = paraObjetos(dados.P);
-  estado.itens = paraObjetos(dados.I);
+
+  const apontados = paraObjetos(dados.I);
+  const naoIniciados = itensSemApontamento(apontados, paraObjetos(dados.T));
+  estado.itens = apontados.concat(naoIniciados);
+
+  // "Itens prontos" passa a contar sobre o total real do pedido, vindo do
+  // relatório de itens, e não só sobre o que já tem apontamento
+  const totalReal = {};
+  estado.itens.forEach(function (i) {
+    const k = String(i.Pedido_Linha);
+    totalReal[k] = (totalReal[k] || 0) + 1;
+  });
+  estado.pedidos.forEach(function (p) {
+    const k = String(p.Pedido_Linha);
+    p.Qtd_Itens_Total = Math.max(Number(p.Qtd_Itens) || 0, totalReal[k] || 0);
+  });
   estado.hoje = dados.hoje || new Date().toISOString().slice(0, 10);
 
   estado.porPedido = {};
@@ -297,6 +313,36 @@ async function carregar() {
   montarListas();
   restaurarFiltros();
   render();
+}
+
+/* Itens do pedido que ainda não têm apontamento nenhum: entram na tabela
+ * como "A PROGRAMAR", com a chapa vinda do cadastro de produtos. */
+function itensSemApontamento(apontados, itensPedido) {
+  if (!itensPedido.length) return [];
+
+  const jaApontado = {};
+  apontados.forEach(function (i) {
+    jaApontado[String(i.Pedido_Linha) + "|" + String(i.Item_Pedido)] = 1;
+  });
+
+  const extras = [];
+  itensPedido.forEach(function (t) {
+    const ped = String(t.Pedido_Linha);
+    if (jaApontado[ped + "|" + String(t.Seq)]) return;
+
+    extras.push({
+      Pedido_Linha: ped,
+      Item_Pedido: t.Seq,
+      Produto: [t.Chapa, t.Descricao].filter(Boolean).join(" — "),
+      Material: t.Material || "",
+      Espessura: String(t.Espessura || "").trim(),
+      Processo_Executado: "",
+      Status_Processo_Executado: "",
+      Status_Final_Item: "A PROGRAMAR",
+      Item_Finalizado: 0
+    });
+  });
+  return extras;
 }
 
 function paraObjetos(t) {
@@ -465,7 +511,8 @@ function desenharPedidos(lista) {
       + "<td>" + esc(p.Cliente) + "</td>"
       + "<td>" + br(p.Data_Entrega) + "</td>"
       + '<td class="tag ' + p.Status_Pedido_Key + '">' + esc(p.Status_Pedido) + "</td>"
-      + '<td class="num">' + esc(p.Qtd_Itens_Produzidos) + " / " + esc(p.Qtd_Itens) + "</td>"
+      + '<td class="num">' + esc(p.Qtd_Itens_Produzidos) + " / "
+      + esc(p.Qtd_Itens_Total !== undefined ? p.Qtd_Itens_Total : p.Qtd_Itens) + "</td>"
       + '<td class="num">' + esc(p.Dias_Vencido) + "</td></tr>");
   }
   corpo.innerHTML = partes.join("");
