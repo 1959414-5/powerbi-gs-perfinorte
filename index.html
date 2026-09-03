@@ -134,7 +134,8 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
 .tag{font-weight:600}
 .tag.ATRASADO{color:var(--vermelho)}
 .tag.A_RETIRAR,.tag.PROGRAMANDO,.tag.CORTANDO,.tag.DOBRANDO,.tag.CALANDRANDO{color:var(--ciano)}
-.tag.PRONTO,.tag.FINALIZADO,.tag.DOBRADO,.tag.CORTADO,.tag.PROGRAMADO,.tag.CALANDRADO{color:var(--verde)}
+.tag.PRONTO,.tag.FINALIZADO,.tag.DOBRADO,.tag.CORTADO,.tag.PROGRAMADO,.tag.CALANDRADO,
+.tag.CONCLUÍDO,.tag.CONCLUIDO{color:var(--verde)}
 .tag.NO_PRAZO,.tag.SEM_DATA{color:var(--texto-fraco)}
 .tag.FALTA_CORTAR,.tag.FALTA_DOBRAR,.tag.FALTA_CALANDRAR,
 .tag.EM_CORTE,.tag.EM_DOBRA,.tag.EM_CALANDRA,.tag.NAO_INICIADO,
@@ -232,6 +233,7 @@ tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
         <th data-col="Processo_Executado" data-larg="150">Processo atual</th>
         <th data-col="Status_Processo_Executado" data-larg="150">Status processo</th>
         <th data-col="Status_Final_Item" data-larg="150">Status item</th>
+        <th data-col="Local" data-larg="90">Local</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -290,7 +292,18 @@ async function carregar() {
 
   estado.pedidos = paraObjetos(dados.P);
 
-  const apontados = paraObjetos(dados.I);
+  // relatório de pedidos concluídos: local de armazenagem e conclusão sem apontamento
+  estado.concluidos = {};
+  paraObjetos(dados.C).forEach(function (c) {
+    estado.concluidos[String(c.Pedido_Linha) + "|" + String(c.Seq)] = c;
+  });
+
+  const apontados = paraObjetos(dados.I).map(function (i) {
+    const c = estado.concluidos[String(i.Pedido_Linha) + "|" + String(i.Item_Pedido)];
+    if (c) i.Local = c.Local || "";
+    return i;
+  });
+
   const naoIniciados = itensSemApontamento(apontados, paraObjetos(dados.T));
   estado.itens = apontados.concat(naoIniciados);
 
@@ -331,6 +344,9 @@ function itensSemApontamento(apontados, itensPedido) {
     const ped = String(t.Pedido_Linha);
     if (jaApontado[ped + "|" + String(t.Seq)]) return;
 
+    // item já dado como concluído no relatório não é fila: está pronto e guardado
+    const c = estado.concluidos[ped + "|" + String(t.Seq)];
+
     extras.push({
       Pedido_Linha: ped,
       Item_Pedido: t.Seq,
@@ -338,9 +354,10 @@ function itensSemApontamento(apontados, itensPedido) {
       Material: t.Material || "",
       Espessura: String(t.Espessura || "").trim(),
       Processo_Executado: "",
-      Status_Processo_Executado: "",
-      Status_Final_Item: "A PROGRAMAR",
-      Item_Finalizado: 0
+      Status_Processo_Executado: c ? "CONCLUÍDO" : "",
+      Status_Final_Item: c ? "CONCLUÍDO" : "A PROGRAMAR",
+      Local: c ? (c.Local || "") : "",
+      Item_Finalizado: c ? 1 : 0
     });
   });
   return extras;
@@ -521,7 +538,7 @@ function desenharPedidos(lista) {
 
 function desenharItens(lista) {
   const corpo = document.querySelector("#tabItens tbody");
-  if (!lista.length) { corpo.innerHTML = vazio(7, "Nenhum item para os filtros atuais."); return; }
+  if (!lista.length) { corpo.innerHTML = vazio(8, "Nenhum item para os filtros atuais."); return; }
 
   const partes = [];
   for (let n = 0; n < lista.length && n < LIMITE_LINHAS; n++) {
@@ -533,7 +550,8 @@ function desenharItens(lista) {
       + '<td class="num">' + esc(i.Espessura) + "</td>"
       + "<td>" + esc(i.Processo_Executado) + "</td>"
       + '<td class="tag ' + chave(i.Status_Processo_Executado) + '">' + esc(i.Status_Processo_Executado) + "</td>"
-      + '<td class="tag ' + chave(i.Status_Final_Item) + '">' + esc(i.Status_Final_Item) + "</td></tr>");
+      + '<td class="tag ' + chave(i.Status_Final_Item) + '">' + esc(i.Status_Final_Item) + "</td>"
+      + "<td>" + esc(i.Local || "") + "</td></tr>");
   }
   corpo.innerHTML = partes.join("");
 }
