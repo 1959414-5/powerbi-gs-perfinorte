@@ -121,6 +121,8 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
   <div class="campo"><label for="fMaterial">Material</label><select id="fMaterial"><option value="">Todos</option></select></div>
   <div class="campo"><label for="fEspessura">Espessura</label><select id="fEspessura"><option value="">Todas</option></select></div>
   <div class="campo"><label for="fCliente">Cliente</label><select id="fCliente"><option value="">Todos</option></select></div>
+  <div class="campo"><label for="fDe">Emissão de</label><input type="date" id="fDe" style="color-scheme:dark"></div>
+  <div class="campo"><label for="fAte">Emissão até</label><input type="date" id="fAte" style="color-scheme:dark"></div>
   <div class="campo"><label for="fBusca">Pedido, cliente ou item</label><input type="search" id="fBusca" placeholder="Buscar" style="min-width:200px"></div>
   <div class="campo"><label>&nbsp;</label><button class="btn" id="btnAtrasados" aria-pressed="false">Só de pedidos atrasados</button></div>
   <div class="campo"><label>&nbsp;</label><button class="btn" id="btnLimpar">Limpar filtros</button></div>
@@ -144,7 +146,7 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
         <th data-col="pos" data-larg="55" class="num">#</th>
         <th data-col="material" data-larg="175">Material</th>
         <th data-col="espessura" data-larg="95" class="num">Espessura</th>
-        <th data-col="desde" data-larg="150">Na fila desde</th>
+        <th data-col="desde" data-larg="120">Na fila desde</th>
         <th data-col="espera" data-larg="90" class="num">Espera</th>
         <th data-col="itens" data-larg="80" class="num">Itens</th>
         <th data-col="pedidos" data-larg="85" class="num">Pedidos</th>
@@ -168,7 +170,7 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
       <colgroup></colgroup>
       <thead><tr>
         <th data-col="pos" data-larg="55" class="num">#</th>
-        <th data-col="Fila_Desde" data-larg="145">Na fila desde</th>
+        <th data-col="Fila_Desde" data-larg="120">Na fila desde</th>
         <th data-col="Pedido_Linha" data-larg="85">Pedido</th>
         <th data-col="Item_Pedido" data-larg="55" class="num">Item</th>
         <th data-col="Cliente" data-larg="200">Cliente</th>
@@ -199,6 +201,7 @@ const estado = {
   itens: [], pedidos: {}, hoje: "",
   etapa: "CORTE", ordem: "fila",
   material: "", espessura: "", cliente: "", busca: "", soAtrasados: false,
+  de: "", ate: "",
   grupoSel: "",
   ordemSeq: { col: "pos", desc: false },
   ordemItens: { col: "pos", desc: false }
@@ -229,7 +232,7 @@ async function carregar() {
   if (!dados) dados = window.DADOS_DEMO;
   if (!dados) { avisar("Nenhuma fonte de dados disponível."); return; }
 
-  estado.hoje = dados.hoje || new Date().toISOString().slice(0, 10);
+  estado.hoje = dados.hoje || hojeBrasilia();
 
   estado.pedidos = {};
   paraObjetos(dados.P).forEach(function (p) { estado.pedidos[String(p.Pedido_Linha)] = p; });
@@ -247,6 +250,7 @@ async function carregar() {
       i.Espessura = String(i.Espessura || "").trim();
       i.Fila_Desde = String(i.Fila_Desde || "").trim();
       i.Data_Entrega = p.Data_Entrega || "";
+      i.Data_Emissao = p.Data_Emissao || "";
       i.Status_Pedido_Key = p.Status_Pedido_Key || "";
       i.Cliente = i.Cliente || p.Cliente || "";
       return i;
@@ -276,6 +280,8 @@ function filtrados(comEtapa) {
     if (estado.espessura && i.Espessura !== estado.espessura) return false;
     if (estado.cliente && i.Cliente !== estado.cliente) return false;
     if (estado.soAtrasados && i.Status_Pedido_Key !== "ATRASADO") return false;
+    if (estado.de && (!i.Data_Emissao || i.Data_Emissao < estado.de)) return false;
+    if (estado.ate && (!i.Data_Emissao || i.Data_Emissao > estado.ate)) return false;
     if (busca && (String(i.Pedido_Linha) + " " + i.Cliente + " " + i.Produto)
       .toLowerCase().indexOf(busca) < 0) return false;
     return true;
@@ -327,6 +333,11 @@ function comparador() {
     if (x === y) return b.itens - a.itens;
     return x < y ? -1 : 1;
   };
+}
+
+/** Data de hoje no fuso de Brasília, usada para medir a espera na fila. */
+function hojeBrasilia() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
 const diasDesde = function (quando) {
@@ -395,7 +406,7 @@ function desenharSeq(lista) {
       + '<td class="num"><span class="pos">' + g.pos + "</span></td>"
       + "<td>" + esc(g.material) + "</td>"
       + '<td class="num">' + esc(g.espessura) + "</td>"
-      + "<td>" + (g.desde ? brHora(g.desde) : "sem apontamento") + "</td>"
+      + "<td>" + (g.desde ? br(g.desde) : "sem apontamento") + "</td>"
       + '<td class="num espera ' + cls + '">' + (g.espera < 0 ? "—" : g.espera + "d") + "</td>"
       + '<td class="num">' + g.itens + "</td>"
       + '<td class="num">' + g.pedidos + "</td>"
@@ -414,7 +425,7 @@ function desenharItens(lista) {
     const i = lista[n];
     partes.push("<tr>"
       + '<td class="num"><span class="pos">' + i.pos + "</span></td>"
-      + "<td>" + (i.Fila_Desde ? brHora(i.Fila_Desde) : "—") + "</td>"
+      + "<td>" + br(i.Fila_Desde) + "</td>"
       + "<td>" + esc(i.Pedido_Linha) + "</td>"
       + '<td class="num">' + esc(i.Item_Pedido) + "</td>"
       + '<td title="' + esc(i.Cliente) + '">' + esc(i.Cliente) + "</td>"
@@ -451,12 +462,6 @@ const br = function (d) {
   d = String(d || "");
   return /^\d{4}-\d{2}-\d{2}/.test(d) ? d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4) : "—";
 };
-const brHora = function (v) {
-  v = String(v || "");
-  const dia = br(v.slice(0, 10));
-  const h = v.slice(11, 16);
-  return h ? dia + " " + h : dia;
-};
 const texto = function (id, v) { document.getElementById(id).textContent = v; };
 
 /* ------------------------ listas dos filtros ------------------- */
@@ -485,11 +490,12 @@ function preencher(id, valores) {
 }
 
 /* --------------------------- interação ------------------------- */
-const LIGACOES = { fMaterial: "material", fEspessura: "espessura", fCliente: "cliente", fBusca: "busca" };
+const LIGACOES = { fMaterial: "material", fEspessura: "espessura", fCliente: "cliente",
+  fBusca: "busca", fDe: "de", fAte: "ate" };
 
 Object.keys(LIGACOES).forEach(function (id) {
   const el = document.getElementById(id);
-  el.addEventListener(el.tagName === "SELECT" ? "change" : "input", function () {
+  el.addEventListener(el.tagName === "SELECT" || el.type === "date" ? "change" : "input", function () {
     estado[LIGACOES[id]] = el.value;
     estado.grupoSel = "";
     render();
