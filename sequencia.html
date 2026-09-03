@@ -36,6 +36,34 @@ body{background:var(--fundo);color:var(--texto);
 input,select{background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
   border-radius:6px;padding:5px 8px;font:inherit;height:29px;min-width:135px}
 input:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
+/* ---- filtro de múltipla escolha ---- */
+.multi{position:relative}
+.multi-btn{width:100%;min-width:150px;height:29px;text-align:left;cursor:pointer;
+  background:var(--fundo);color:var(--texto);border:1px solid var(--linha);
+  border-radius:6px;padding:5px 24px 5px 8px;font:inherit;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.multi-btn::after{content:"";position:absolute;right:9px;top:12px;
+  border:4px solid transparent;border-top-color:var(--texto-fraco)}
+.multi-btn:hover{border-color:var(--ciano)}
+.multi-btn[aria-expanded=true]{border-color:var(--ciano)}
+.multi-btn.ativo{color:var(--ciano);font-weight:600}
+.multi-menu{position:absolute;z-index:30;top:32px;left:0;min-width:230px;max-width:330px;
+  background:var(--painel-2);border:1px solid var(--ciano);border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45);padding:7px}
+.multi-menu[hidden]{display:none}
+.multi-menu input[type=search]{width:100%;min-width:0;margin-bottom:6px}
+.multi-acoes{display:flex;gap:6px;margin-bottom:6px}
+.multi-acoes button{flex:1;height:25px;font-size:11.5px;padding:0 6px;
+  background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
+  border-radius:5px;cursor:pointer}
+.multi-acoes button:hover{border-color:var(--ciano);color:var(--texto)}
+.multi-lista{max-height:220px;overflow:auto}
+.multi-lista label{display:flex;gap:7px;align-items:center;padding:3px 4px;
+  border-radius:4px;cursor:pointer;font-size:12.5px}
+.multi-lista label:hover{background:rgba(79,195,247,.1)}
+.multi-lista input{min-width:0;height:auto;accent-color:var(--ciano)}
+.multi-vazio{padding:10px;text-align:center;color:var(--texto-fraco);font-size:11.5px}
+
 .btn{background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
   border-radius:6px;padding:5px 13px;font:inherit;height:29px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--ciano);color:var(--texto)}
@@ -118,9 +146,9 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
 </div>
 
 <div class="filtros">
-  <div class="campo"><label for="fMaterial">Material</label><select id="fMaterial"><option value="">Todos</option></select></div>
-  <div class="campo"><label for="fEspessura">Espessura</label><select id="fEspessura"><option value="">Todas</option></select></div>
-  <div class="campo"><label for="fCliente">Cliente</label><select id="fCliente"><option value="">Todos</option></select></div>
+  <div class="campo"><label>Material</label><div class="multi" id="fMaterial"></div></div>
+  <div class="campo"><label>Espessura</label><div class="multi" id="fEspessura"></div></div>
+  <div class="campo"><label>Cliente</label><div class="multi" id="fCliente"></div></div>
   <div class="campo"><label for="fDe">Emissão de</label><input type="date" id="fDe" style="color-scheme:dark"></div>
   <div class="campo"><label for="fAte">Emissão até</label><input type="date" id="fAte" style="color-scheme:dark"></div>
   <div class="campo"><label for="fBusca">Pedido, cliente ou item</label><input type="search" id="fBusca" placeholder="Buscar" style="min-width:200px"></div>
@@ -200,7 +228,7 @@ const RODANDO = { "EM CORTE": 1, "EM DOBRA": 1, "EM CALANDRA": 1 };
 const estado = {
   itens: [], pedidos: {}, hoje: "",
   etapa: "CORTE", ordem: "fila",
-  material: "", espessura: "", cliente: "", busca: "", soAtrasados: false,
+  material: [], espessura: [], cliente: [], busca: "", soAtrasados: false,
   de: "", ate: "",
   grupoSel: "",
   ordemSeq: { col: "pos", desc: false },
@@ -276,9 +304,9 @@ function filtrados(comEtapa) {
   const busca = estado.busca.toLowerCase();
   return estado.itens.filter(function (i) {
     if (comEtapa && i.Etapa_Fila !== estado.etapa) return false;
-    if (estado.material && i.Material !== estado.material) return false;
-    if (estado.espessura && i.Espessura !== estado.espessura) return false;
-    if (estado.cliente && i.Cliente !== estado.cliente) return false;
+    if (estado.material.length && estado.material.indexOf(i.Material) < 0) return false;
+    if (estado.espessura.length && estado.espessura.indexOf(i.Espessura) < 0) return false;
+    if (estado.cliente.length && estado.cliente.indexOf(i.Cliente) < 0) return false;
     if (estado.soAtrasados && i.Status_Pedido_Key !== "ATRASADO") return false;
     if (estado.de && (!i.Data_Emissao || i.Data_Emissao < estado.de)) return false;
     if (estado.ate && (!i.Data_Emissao || i.Data_Emissao > estado.ate)) return false;
@@ -464,12 +492,120 @@ const br = function (d) {
 };
 const texto = function (id, v) { document.getElementById(id).textContent = v; };
 
+
+/* ==================== filtro de múltipla escolha ====================
+ * Nenhuma marcada = todas. Traz busca, "marcar todos" e "limpar".
+ */
+function MultiFiltro(id, rotulo, aoMudar) {
+  const raiz = document.getElementById(id);
+  const botao = document.createElement("button");
+  botao.className = "multi-btn";
+  botao.type = "button";
+  botao.setAttribute("aria-expanded", "false");
+
+  const menu = document.createElement("div");
+  menu.className = "multi-menu";
+  menu.hidden = true;
+  menu.innerHTML = '<input type="search" placeholder="Filtrar lista">'
+    + '<div class="multi-acoes"><button type="button" data-acao="todos">Marcar todos</button>'
+    + '<button type="button" data-acao="limpar">Limpar</button></div>'
+    + '<div class="multi-lista"></div>';
+
+  raiz.appendChild(botao);
+  raiz.appendChild(menu);
+
+  const busca = menu.querySelector("input");
+  const lista = menu.querySelector(".multi-lista");
+  let opcoes = [], marcadas = {};
+
+  function rotuloBotao() {
+    const n = Object.keys(marcadas).length;
+    botao.classList.toggle("ativo", n > 0);
+    if (n === 0) return "Todos";
+    if (n === 1) return Object.keys(marcadas)[0];
+    if (n === opcoes.length) return "Todos (" + n + ")";
+    return n + " selecionados";
+  }
+
+  function desenhar() {
+    const t = busca.value.trim().toLowerCase();
+    const visiveis = opcoes.filter(function (o) { return !t || o.toLowerCase().indexOf(t) >= 0; });
+    lista.innerHTML = visiveis.length
+      ? visiveis.map(function (o) {
+        return '<label><input type="checkbox" value="' + escAttr(o) + '"'
+          + (marcadas[o] ? " checked" : "") + "><span>" + escAttr(o) + "</span></label>";
+      }).join("")
+      : '<div class="multi-vazio">Nada encontrado</div>';
+    botao.textContent = rotuloBotao();
+  }
+
+  botao.onclick = function () {
+    const abrir = menu.hidden;
+    fecharTodos();
+    menu.hidden = !abrir;
+    botao.setAttribute("aria-expanded", String(abrir));
+    if (abrir) { busca.value = ""; desenhar(); busca.focus(); }
+  };
+
+  busca.oninput = desenhar;
+
+  menu.addEventListener("click", function (ev) {
+    const acao = ev.target.closest("[data-acao]");
+    if (acao) {
+      const t = busca.value.trim().toLowerCase();
+      const alvo = opcoes.filter(function (o) { return !t || o.toLowerCase().indexOf(t) >= 0; });
+      if (acao.dataset.acao === "todos") alvo.forEach(function (o) { marcadas[o] = 1; });
+      else alvo.forEach(function (o) { delete marcadas[o]; });
+      desenhar();
+      aoMudar(selecionadas());
+      return;
+    }
+    const cx = ev.target.closest("input[type=checkbox]");
+    if (!cx) return;
+    if (cx.checked) marcadas[cx.value] = 1; else delete marcadas[cx.value];
+    botao.textContent = rotuloBotao();
+    aoMudar(selecionadas());
+  });
+
+  function selecionadas() { return Object.keys(marcadas); }
+
+  this.setOpcoes = function (valores) {
+    opcoes = valores;
+    // descarta seleções que sumiram da base
+    Object.keys(marcadas).forEach(function (k) {
+      if (valores.indexOf(k) < 0) delete marcadas[k];
+    });
+    desenhar();
+  };
+  this.limpar = function () { marcadas = {}; desenhar(); };
+  this.fechar = function () { menu.hidden = true; botao.setAttribute("aria-expanded", "false"); };
+
+  MULTIS.push(this);
+  desenhar();
+}
+
+const MULTIS = [];
+function fecharTodos() { MULTIS.forEach(function (m) { m.fechar(); }); }
+document.addEventListener("click", function (ev) {
+  if (!ev.target.closest(".multi")) fecharTodos();
+});
+const escAttr = function (s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+};
+
 /* ------------------------ listas dos filtros ------------------- */
+const FILTROS = {};
+
 function montarListas() {
-  preencher("fMaterial", unicos("Material").sort());
-  preencher("fCliente", unicos("Cliente").sort());
-  preencher("fEspessura", unicos("Espessura").sort(function (a, b) {
-    return parseFloat(a.replace(",", ".")) - parseFloat(b.replace(",", "."));
+  FILTROS.material.setOpcoes(unicos("Material").sort());
+  FILTROS.cliente.setOpcoes(unicos("Cliente").sort());
+  FILTROS.espessura.setOpcoes(unicos("Espessura").sort(function (a, b) {
+    const x = parseFloat(a.replace(",", ".")), y = parseFloat(b.replace(",", "."));
+    if (isNaN(x) && isNaN(y)) return a < b ? -1 : 1;   // 'MO' vai para o fim
+    if (isNaN(x)) return 1;
+    if (isNaN(y)) return -1;
+    return x - y;
   }));
 }
 function unicos(campo) {
@@ -477,21 +613,19 @@ function unicos(campo) {
   estado.itens.forEach(function (i) { if (i[campo]) v[i[campo]] = 1; });
   return Object.keys(v);
 }
-function preencher(id, valores) {
-  const sel = document.getElementById(id);
-  const atual = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
-  valores.forEach(function (v) {
-    const o = document.createElement("option");
-    o.value = o.textContent = v;
-    sel.appendChild(o);
-  });
-  sel.value = valores.indexOf(atual) >= 0 ? atual : "";
-}
 
 /* --------------------------- interação ------------------------- */
-const LIGACOES = { fMaterial: "material", fEspessura: "espessura", fCliente: "cliente",
-  fBusca: "busca", fDe: "de", fAte: "ate" };
+FILTROS.material = new MultiFiltro("fMaterial", "Material", function (v) {
+  estado.material = v; estado.grupoSel = ""; render();
+});
+FILTROS.espessura = new MultiFiltro("fEspessura", "Espessura", function (v) {
+  estado.espessura = v; estado.grupoSel = ""; render();
+});
+FILTROS.cliente = new MultiFiltro("fCliente", "Cliente", function (v) {
+  estado.cliente = v; estado.grupoSel = ""; render();
+});
+
+const LIGACOES = { fBusca: "busca", fDe: "de", fAte: "ate" };
 
 Object.keys(LIGACOES).forEach(function (id) {
   const el = document.getElementById(id);
@@ -540,6 +674,10 @@ document.getElementById("btnLimpar").onclick = function () {
   Object.keys(LIGACOES).forEach(function (id) {
     document.getElementById(id).value = "";
     estado[LIGACOES[id]] = "";
+  });
+  ["material", "espessura", "cliente"].forEach(function (k) {
+    FILTROS[k].limpar();
+    estado[k] = [];
   });
   estado.soAtrasados = false;
   estado.grupoSel = "";
