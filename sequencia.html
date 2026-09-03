@@ -6,9 +6,18 @@
 <title>Perfinorte — Sequência de Produção</title>
 <style>
 :root{
-  --fundo:#101c30; --painel:#16233b; --painel-2:#1b2b47; --linha:#26385a;
-  --texto:#e8eef8; --texto-fraco:#93a4c0; --ciano:#4fc3f7; --ciano-fraco:#2a5f85;
-  --verde:#4ade80; --vermelho:#ff6b6b; --amarelo:#ffc857; --raio:10px;
+  --fundo:#eef1f5;
+  --painel:#ffffff;
+  --painel-2:#e4eaf1;
+  --linha:#c3ccd8;
+  --texto:#1f2937;
+  --texto-fraco:#5b6878;
+  --ciano:#1a5fa8;
+  --ciano-fraco:#a9c8e6;
+  --vermelho:#c0392b;
+  --amarelo:#a76b00;
+  --verde:#1e7a45;
+  --raio:6px;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;padding:0;overflow:hidden}
@@ -49,7 +58,7 @@ input:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
 .multi-btn.ativo{color:var(--ciano);font-weight:600}
 .multi-menu{position:absolute;z-index:30;top:32px;left:0;min-width:230px;max-width:330px;
   background:var(--painel-2);border:1px solid var(--ciano);border-radius:8px;
-  box-shadow:0 8px 24px rgba(0,0,0,.45);padding:7px}
+  box-shadow:0 8px 24px rgba(31,41,55,.18);padding:7px}
 .multi-menu[hidden]{display:none}
 .multi-menu input[type=search]{width:100%;min-width:0;margin-bottom:6px}
 .multi-acoes{display:flex;gap:6px;margin-bottom:6px}
@@ -60,16 +69,16 @@ input:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
 .multi-lista{max-height:220px;overflow:auto}
 .multi-lista label{display:flex;gap:7px;align-items:center;padding:3px 4px;
   border-radius:4px;cursor:pointer;font-size:12.5px}
-.multi-lista label:hover{background:rgba(79,195,247,.1)}
+.multi-lista label:hover{background:rgba(26,95,168,.08)}
 .multi-lista input{min-width:0;height:auto;accent-color:var(--ciano)}
 .multi-vazio{padding:10px;text-align:center;color:var(--texto-fraco);font-size:11.5px}
 
 .btn{background:var(--fundo);color:var(--texto-fraco);border:1px solid var(--linha);
   border-radius:6px;padding:5px 13px;font:inherit;height:29px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--ciano);color:var(--texto)}
-.btn[aria-pressed=true]{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
-.btn.primario{background:var(--ciano);border-color:var(--ciano);color:#08172b;font-weight:600}
-.btn.primario:hover{filter:brightness(1.1);color:#08172b}
+.btn[aria-pressed=true]{background:var(--ciano);border-color:var(--ciano);color:#ffffff;font-weight:600}
+.btn.primario{background:var(--ciano);border-color:var(--ciano);color:#ffffff;font-weight:600}
+.btn.primario:hover{filter:brightness(1.1);color:#ffffff}
 .btn[disabled]{opacity:.5;cursor:default}
 .btn:focus-visible{outline:2px solid var(--ciano);outline-offset:2px}
 
@@ -87,21 +96,21 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:fixed}
 thead th{position:sticky;top:0;z-index:2;background:var(--painel-2);color:var(--ciano);
   text-align:left;font-weight:600;padding:7px 9px;border-bottom:1px solid var(--linha);
   cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
-thead th:hover{color:#fff}
+thead th:hover{color:#0d3c6e}
 .puxador{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
 .puxador:hover{background:var(--ciano)}
-tbody td{padding:5px 9px;border-bottom:1px solid rgba(38,56,90,.5);
+tbody td{padding:5px 9px;border-bottom:1px solid rgba(195,204,216,.55);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 tbody tr{cursor:pointer}
-tbody tr:hover{background:rgba(79,195,247,.07)}
-tbody tr[aria-selected=true]{background:rgba(79,195,247,.18)}
+tbody tr:hover{background:rgba(26,95,168,.06)}
+tbody tr[aria-selected=true]{background:rgba(26,95,168,.14)}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 
 .pos{display:inline-block;min-width:26px;text-align:center;border-radius:5px;
   background:var(--painel-2);border:1px solid var(--linha);font-weight:700;
   font-size:11.5px;padding:1px 5px;color:var(--ciano)}
 tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
-  background:var(--ciano);color:#08172b;border-color:var(--ciano)}
+  background:var(--ciano);color:#ffffff;border-color:var(--ciano)}
 .espera{font-weight:600}
 .espera.alta{color:var(--vermelho)}
 .espera.media{color:var(--amarelo)}
@@ -117,7 +126,7 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
 .rodape{flex:0 0 auto;padding:5px 12px;color:var(--texto-fraco);font-size:11.5px;
   border-top:1px solid var(--linha)}
 .vazio{padding:22px;text-align:center;color:var(--texto-fraco);white-space:normal}
-#aviso{flex:0 0 auto;background:#3a2a12;border:1px solid #6b4d1e;color:#ffd08a;
+#aviso{flex:0 0 auto;background:#fdf3d7;border:1px solid #e0c07a;color:#7a5a10;
   border-radius:var(--raio);padding:8px 13px;font-size:12.5px;display:none}
 </style>
 </head>
@@ -150,8 +159,9 @@ tr:nth-child(1) .pos,tr:nth-child(2) .pos,tr:nth-child(3) .pos{
   <div class="campo"><label>Material</label><div class="multi" id="fMaterial"></div></div>
   <div class="campo"><label>Espessura</label><div class="multi" id="fEspessura"></div></div>
   <div class="campo"><label>Cliente</label><div class="multi" id="fCliente"></div></div>
-  <div class="campo"><label for="fDe">Emissão de</label><input type="date" id="fDe" style="color-scheme:dark"></div>
-  <div class="campo"><label for="fAte">Emissão até</label><input type="date" id="fAte" style="color-scheme:dark"></div>
+  <div class="campo"><label>Situação do pedido</label><div class="multi" id="fSituacao"></div></div>
+  <div class="campo"><label for="fDe">Emissão de</label><input type="date" id="fDe" style="color-scheme:light"></div>
+  <div class="campo"><label for="fAte">Emissão até</label><input type="date" id="fAte" style="color-scheme:light"></div>
   <div class="campo"><label for="fBusca">Pedido, cliente ou item</label><input type="search" id="fBusca" placeholder="Buscar" style="min-width:200px"></div>
   <div class="campo"><label>&nbsp;</label><button class="btn" id="btnAtrasados" aria-pressed="false">Só de pedidos atrasados</button></div>
   <div class="campo"><label>&nbsp;</label><button class="btn" id="btnLimpar">Limpar filtros</button></div>
@@ -222,7 +232,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbybVVh11IBaM43rsBFFCUwE
 
 const ETAPAS = ["PROGRAMAÇÃO", "CORTE", "DOBRA", "CALANDRA"];
 const CHAVE_FILTROS = "perfinorte:sequencia:filtros";
-const CAMPOS_SALVOS = ["material", "espessura", "cliente", "de", "ate",
+const CAMPOS_SALVOS = ["material", "espessura", "cliente", "situacao", "de", "ate",
   "soAtrasados", "etapa", "ordem"];
 const LIMITE = 3000;
 
@@ -232,7 +242,7 @@ const RODANDO = { "EM CORTE": 1, "EM DOBRA": 1, "EM CALANDRA": 1 };
 const estado = {
   itens: [], pedidos: {}, hoje: "",
   etapa: "CORTE", ordem: "fila",
-  material: [], espessura: [], cliente: [], busca: "", soAtrasados: false,
+  material: [], espessura: [], cliente: [], situacao: [], busca: "", soAtrasados: false,
   de: "", ate: "",
   grupoSel: "",
   ordemSeq: { col: "pos", desc: false },
@@ -273,6 +283,14 @@ async function carregar() {
     avisar("A aba Itens_Limpos ainda não tem as colunas Etapa_Fila e Fila_Desde. Cole o "
       + "Codigo.gs novo e rode Atualizar base agora — sem elas não há como sequenciar.");
   }
+
+  const itensPedido = paraObjetos(dados.T);
+
+  // situação do pedido, item a item, como vem na coluna "Sit." do relatório
+  const situacaoPorItem = {};
+  itensPedido.forEach(function (t) {
+    situacaoPorItem[String(t.Pedido_Linha) + "|" + String(t.Seq)] = t.Situacao || "";
+  });
 
   const apontados = paraObjetos(dados.I);
 
@@ -326,6 +344,7 @@ function filaAProgramar(apontados, itensPedido) {
       Status_Final_Item: "A PROGRAMAR",
       Etapa_Fila: "PROGRAMAÇÃO",
       // ainda não houve apontamento: a fila conta da emissão do pedido
+      Situacao: t.Situacao || "",
       Fila_Desde: p.Data_Emissao || t.Data_Entrega_Item || "",
       Data_Entrega: t.Data_Entrega_Item || p.Data_Entrega || "",
       Data_Emissao: p.Data_Emissao || "",
@@ -363,6 +382,7 @@ function filtrados(comEtapa) {
     if (estado.material.length && estado.material.indexOf(i.Material) < 0) return false;
     if (estado.espessura.length && estado.espessura.indexOf(i.Espessura) < 0) return false;
     if (estado.cliente.length && estado.cliente.indexOf(i.Cliente) < 0) return false;
+    if (estado.situacao.length && estado.situacao.indexOf(i.Situacao) < 0) return false;
     if (estado.soAtrasados && i.Status_Pedido_Key !== "ATRASADO") return false;
     if (estado.de && (!i.Data_Emissao || i.Data_Emissao < estado.de)) return false;
     if (estado.ate && (!i.Data_Emissao || i.Data_Emissao > estado.ate)) return false;
@@ -694,6 +714,7 @@ const FILTROS = {};
 function montarListas() {
   FILTROS.material.setOpcoes(unicos("Material").sort());
   FILTROS.cliente.setOpcoes(unicos("Cliente").sort());
+  FILTROS.situacao.setOpcoes(unicos("Situacao").sort());
   FILTROS.espessura.setOpcoes(unicos("Espessura").sort(function (a, b) {
     const x = parseFloat(a.replace(",", ".")), y = parseFloat(b.replace(",", "."));
     if (isNaN(x) && isNaN(y)) return a < b ? -1 : 1;   // 'MO' vai para o fim
@@ -717,6 +738,9 @@ FILTROS.espessura = new MultiFiltro("fEspessura", "Espessura", function (v) {
 });
 FILTROS.cliente = new MultiFiltro("fCliente", "Cliente", function (v) {
   estado.cliente = v; estado.grupoSel = ""; salvarFiltros(); render();
+});
+FILTROS.situacao = new MultiFiltro("fSituacao", "Situação", function (v) {
+  estado.situacao = v; estado.grupoSel = ""; salvarFiltros(); render();
 });
 
 const LIGACOES = { fBusca: "busca", fDe: "de", fAte: "ate" };
