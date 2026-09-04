@@ -80,6 +80,17 @@ select:focus{outline:2px solid var(--ciano);outline-offset:1px}
 .grade{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 300px;gap:10px}
 .coluna{display:flex;flex-direction:column;gap:10px;min-height:0}
 
+/* ---- divisor de altura entre painéis ---- */
+.divisor{flex:0 0 8px;cursor:row-resize;position:relative}
+.divisor::after{content:"";position:absolute;left:50%;top:3px;width:46px;height:3px;
+  margin-left:-23px;border-radius:2px;background:var(--linha)}
+.divisor:hover::after{background:var(--ciano)}
+/* linha que acompanha o arraste; o efeito só é aplicado ao soltar */
+.guia{position:fixed;z-index:999;background:var(--ciano);pointer-events:none;opacity:.9}
+.guia.h{left:0;right:0;height:2px}
+.guia.v{width:2px}
+body.arrastando{user-select:none}
+
 .painel{background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
   display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .painel > h2{margin:0;padding:8px 14px;font-size:13.5px;font-weight:500;color:var(--texto-fraco);
@@ -247,7 +258,8 @@ tbody tr[aria-selected=true]{background:rgba(26,95,168,.14)}
       </div>
     </section>
 
-    <section class="painel" id="painelPeriodo">
+    <div class="divisor" id="divisor" title="Arraste para mudar a altura"></div>
+<section class="painel" id="painelPeriodo">
       <h2>Faturamento por período vs média histórica</h2>
       <div class="legendas">
         <span><i class="bolinha" style="background:var(--ciano)"></i>Faturamento do período</span>
@@ -799,6 +811,62 @@ document.getElementById("btnLimpar").onclick = function () {
 document.getElementById("btnMostrar").onclick = carregar;
 
 /* ordenação e redimensionamento */
+/* =============== redimensionamento com pré-visualização ===============
+ * Enquanto arrasta, aparece só uma linha guia. A largura ou a altura muda
+ * quando o botão do mouse é solto.
+ */
+let GUIA = null;
+
+function mostrarGuia(tipo, caixa) {
+  GUIA = document.createElement("div");
+  GUIA.className = "guia " + tipo;
+  if (caixa) { GUIA.style.top = caixa.top + "px"; GUIA.style.height = caixa.height + "px"; }
+  document.body.appendChild(GUIA);
+  document.body.classList.add("arrastando");
+  return GUIA;
+}
+
+function esconderGuia() {
+  if (GUIA) GUIA.remove();
+  GUIA = null;
+  document.body.classList.remove("arrastando");
+  document.body.style.cursor = "";
+}
+
+/** Divisor que muda a altura dos dois painéis vizinhos. */
+function prepararDivisor(idDivisor, idAcima, idAbaixo) {
+  const div = document.getElementById(idDivisor);
+  const acima = document.getElementById(idAcima);
+  const abaixo = document.getElementById(idAbaixo);
+  if (!div || !acima || !abaixo) return;
+
+  div.addEventListener("mousedown", function (ev) {
+    ev.preventDefault();
+    const ra = acima.getBoundingClientRect();
+    const rb = abaixo.getBoundingClientRect();
+    const minimo = 90;
+    let y = ev.clientY;
+
+    const g = mostrarGuia("h");
+    g.style.top = y + "px";
+    document.body.style.cursor = "row-resize";
+
+    const mover = function (e) {
+      y = Math.min(Math.max(e.clientY, ra.top + minimo), rb.bottom - minimo);
+      g.style.top = y + "px";
+    };
+    const soltar = function () {
+      document.removeEventListener("mousemove", mover);
+      document.removeEventListener("mouseup", soltar);
+      acima.style.flex = "0 0 " + Math.round(y - ra.top) + "px";
+      abaixo.style.flex = "1 1 " + Math.round(rb.bottom - y - div.offsetHeight) + "px";
+      esconderGuia();
+    };
+    document.addEventListener("mousemove", mover);
+    document.addEventListener("mouseup", soltar);
+  });
+}
+
 (function prepararTabela() {
   const tabela = document.getElementById("tabABC");
   const grupo = tabela.querySelector("colgroup");
@@ -823,19 +891,31 @@ document.getElementById("btnMostrar").onclick = carregar;
 
     puxador.addEventListener("mousedown", function (ev) {
       ev.preventDefault(); ev.stopPropagation();
+      const area = th.closest(".rolagem") || tabela.parentNode;
       const x0 = ev.clientX, l0 = th.getBoundingClientRect().width;
-      const mover = function (e) { col.style.width = Math.max(50, l0 + e.clientX - x0) + "px"; };
+      let x = x0;
+
+      const g = mostrarGuia("v", area.getBoundingClientRect());
+      g.style.left = x + "px";
+      document.body.style.cursor = "col-resize";
+
+      const mover = function (e) {
+        x = Math.max(e.clientX, x0 - l0 + 50);
+        g.style.left = x + "px";
+      };
       const soltar = function () {
         document.removeEventListener("mousemove", mover);
         document.removeEventListener("mouseup", soltar);
-        document.body.style.cursor = "";
+        col.style.width = Math.max(50, l0 + x - x0) + "px";
+        esconderGuia();
       };
-      document.body.style.cursor = "col-resize";
       document.addEventListener("mousemove", mover);
       document.addEventListener("mouseup", soltar);
     });
   });
 })();
+
+prepararDivisor("divisor", "painelABC", "painelPeriodo");
 
 carregar();
 </script>
