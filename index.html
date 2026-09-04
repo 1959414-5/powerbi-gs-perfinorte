@@ -96,6 +96,17 @@ input:focus,select:focus{outline:2px solid var(--ciano);outline-offset:1px}
 .btn[disabled]{opacity:.5;cursor:default}
 
 /* ---------- painéis ---------- */
+/* ---- divisor de altura entre painéis ---- */
+.divisor{flex:0 0 8px;cursor:row-resize;position:relative}
+.divisor::after{content:"";position:absolute;left:50%;top:3px;width:46px;height:3px;
+  margin-left:-23px;border-radius:2px;background:var(--linha)}
+.divisor:hover::after{background:var(--ciano)}
+/* linha que acompanha o arraste; o efeito só é aplicado ao soltar */
+.guia{position:fixed;z-index:999;background:var(--ciano);pointer-events:none;opacity:.9}
+.guia.h{left:0;right:0;height:2px}
+.guia.v{width:2px}
+body.arrastando{user-select:none}
+
 .painel{
   background:var(--painel);border:1px solid var(--linha);border-radius:var(--raio);
   display:flex;flex-direction:column;min-height:0;overflow:hidden;
@@ -211,6 +222,7 @@ tbody tr[aria-selected=true]{background:rgba(26,95,168,.14)}
   <div class="rodape"><span id="rodapePedidos"></span></div>
 </section>
 
+<div class="divisor" id="divisor" title="Arraste para mudar a altura"></div>
 <section class="painel" id="painelItens">
   <div class="cabeca">
     <h2>Status de pedidos por item</h2>
@@ -841,6 +853,63 @@ document.querySelectorAll("[data-periodo]").forEach(function (b) {
 });
 
 /* ordenação e redimensionamento de colunas */
+
+/* =============== redimensionamento com pré-visualização ===============
+ * Enquanto arrasta, aparece só uma linha guia. A largura ou a altura muda
+ * quando o botão do mouse é solto.
+ */
+let GUIA = null;
+
+function mostrarGuia(tipo, caixa) {
+  GUIA = document.createElement("div");
+  GUIA.className = "guia " + tipo;
+  if (caixa) { GUIA.style.top = caixa.top + "px"; GUIA.style.height = caixa.height + "px"; }
+  document.body.appendChild(GUIA);
+  document.body.classList.add("arrastando");
+  return GUIA;
+}
+
+function esconderGuia() {
+  if (GUIA) GUIA.remove();
+  GUIA = null;
+  document.body.classList.remove("arrastando");
+  document.body.style.cursor = "";
+}
+
+/** Divisor que muda a altura dos dois painéis vizinhos. */
+function prepararDivisor(idDivisor, idAcima, idAbaixo) {
+  const div = document.getElementById(idDivisor);
+  const acima = document.getElementById(idAcima);
+  const abaixo = document.getElementById(idAbaixo);
+  if (!div || !acima || !abaixo) return;
+
+  div.addEventListener("mousedown", function (ev) {
+    ev.preventDefault();
+    const ra = acima.getBoundingClientRect();
+    const rb = abaixo.getBoundingClientRect();
+    const minimo = 90;
+    let y = ev.clientY;
+
+    const g = mostrarGuia("h");
+    g.style.top = y + "px";
+    document.body.style.cursor = "row-resize";
+
+    const mover = function (e) {
+      y = Math.min(Math.max(e.clientY, ra.top + minimo), rb.bottom - minimo);
+      g.style.top = y + "px";
+    };
+    const soltar = function () {
+      document.removeEventListener("mousemove", mover);
+      document.removeEventListener("mouseup", soltar);
+      acima.style.flex = "0 0 " + Math.round(y - ra.top) + "px";
+      abaixo.style.flex = "1 1 " + Math.round(rb.bottom - y - div.offsetHeight) + "px";
+      esconderGuia();
+    };
+    document.addEventListener("mousemove", mover);
+    document.addEventListener("mouseup", soltar);
+  });
+}
+
 function prepararTabela(idTabela, ordem) {
   const tabela = document.getElementById(idTabela);
   const grupo = tabela.querySelector("colgroup");
@@ -867,18 +936,25 @@ function prepararTabela(idTabela, ordem) {
     puxador.addEventListener("mousedown", function (ev) {
       ev.preventDefault();
       ev.stopPropagation();
+      const area = th.closest(".rolagem") || tabela.parentNode;
       const xInicial = ev.clientX;
       const largInicial = th.getBoundingClientRect().width;
+      let x = xInicial;
+
+      const g = mostrarGuia("v", area.getBoundingClientRect());
+      g.style.left = x + "px";
+      document.body.style.cursor = "col-resize";
 
       const mover = function (e) {
-        col.style.width = Math.max(50, largInicial + e.clientX - xInicial) + "px";
+        x = Math.max(e.clientX, xInicial - largInicial + 50);
+        g.style.left = x + "px";
       };
       const soltar = function () {
         document.removeEventListener("mousemove", mover);
         document.removeEventListener("mouseup", soltar);
-        document.body.style.cursor = "";
+        col.style.width = Math.max(50, largInicial + x - xInicial) + "px";
+        esconderGuia();
       };
-      document.body.style.cursor = "col-resize";
       document.addEventListener("mousemove", mover);
       document.addEventListener("mouseup", soltar);
     });
@@ -911,6 +987,8 @@ function baixarCSV(nome, lista) {
   a.href = url; a.download = nome; a.click();
   URL.revokeObjectURL(url);
 }
+
+prepararDivisor("divisor", "painelPedidos", "painelItens");
 
 carregar();
 </script>
